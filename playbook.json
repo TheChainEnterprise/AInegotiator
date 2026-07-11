@@ -1,0 +1,22 @@
+{
+  "STRATEGY_BRAND": "Straight Line Execution - Alpha Tier",
+  "OBJECTION_REBUTTALS": {
+    "price_expensive": [
+      "Our medical team coordinates highly customized treatment options; quality clinical results require accurate cost allocation.",
+      "The value reflects our advanced equipment and top-tier specialist execution. Where exactly do you need flexibility?"
+    ],
+    "budget_wall": [
+      "I hear you. If we reduce the baseline price parameters, we'll have to adjust the treatment scope restrictions. Let's look at scheduling options first.",
+      "We rarely adjust pricing tiers because our reservation blocks fill up weeks in advance. However, if you commit to an open slot this week, I can request a structural exception."
+    ]
+  },
+  "REINFORCEMENT_FRAMEWORK": {
+    "focus_shift": "Pivot away from generic chat. Always bring the conversation back to the patient's desired outcome (e.g., skin rejuvenation, aesthetic goals).",
+    "authority_anchor": "When the user is hesitant, mention the 'clinical safety' and 'customized medical planning' that differentiates us from standard spas."
+  },
+  "CLOSING_SCRIPTS": {
+    "urgency_anchor": "Slots are premium assets here. Let's lock this down before the schedule fills completely.",
+    "value_validation": "You are locking in access to our elite medical practitioners at this tier.",
+    "action_prompt": "Are you ready to secure your consultation time now, or shall I check the next available block for you?"
+  }
+}

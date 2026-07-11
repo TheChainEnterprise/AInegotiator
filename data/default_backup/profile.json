@@ -1,0 +1,59 @@
+{
+  "businessName": "Elite Aesthetic Clinic",
+
+  "industry": "Medical Aesthetics",
+
+  "description": "Luxury aesthetic clinic specializing in facial rejuvenation, injectables, laser treatments and advanced skincare.",
+
+  "location": "Bangkok, Thailand",
+
+  "phone": "+66 88 667 5802",
+
+  "email": "info@demo-clinic.com",
+
+  "website": "https://demo-clinic.com",
+
+  "bookingUrl": "https://demo-clinic.com/book",
+
+  "whatsapp": "+66 88 667 5802",
+
+  "services": [
+    "Botox",
+    "Dermal Fillers",
+    "Laser Hair Removal",
+    "Chemical Peel",
+    "Hydrafacial",
+    "Microneedling"
+  ],
+
+  "serviceDescriptions": {
+    "Botox": "Smooths fine lines and wrinkles using botulinum toxin injections.",
+    "Dermal Fillers": "Restore facial volume and contour using premium hyaluronic acid fillers.",
+    "Laser Hair Removal": "Long-term reduction of unwanted hair using medical-grade laser technology.",
+    "Chemical Peel": "Improves pigmentation, acne and skin texture.",
+    "Hydrafacial": "Deep cleansing, exfoliation and hydration treatment.",
+    "Microneedling": "Stimulates collagen production and improves acne scars and skin texture."
+  },
+
+  "openingHours": {
+    "Mon-Fri": "09:00-18:00",
+    "Sat": "09:00-15:00",
+    "Sun": "Closed"
+  },
+
+  "languages": [
+    "English",
+    "Thai"
+  ],
+
+  "faq": {
+    "Parking": "Free parking is available for all clients.",
+    "Consultation": "Consultations are available before every treatment.",
+    "Cancellation": "Appointments can be cancelled up to 24 hours in advance."
+  },
+
+  "socials": {
+    "facebook": "https://facebook.com/demo-clinic",
+    "instagram": "https://instagram.com/demo-clinic"
+  }
+}

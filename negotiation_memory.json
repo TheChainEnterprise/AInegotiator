@@ -1,0 +1,41 @@
+{
+  "tenant": {
+    "aggressiveness": 0,
+    "cooperativeness": 1,
+    "success": 4,
+    "failure": 1
+  },
+  "landlord": {
+    "aggressiveness": 0,
+    "cooperativeness": 1,
+    "success": 4,
+    "failure": 1
+  },
+  "employee": {
+    "success": 5,
+    "failure": 2
+  },
+  "employer": {
+    "success": 5,
+    "failure": 2
+  },
+  "buyer": {
+    "success": 5,
+    "failure": 2
+  },
+  "dealer": {
+    "success": 5,
+    "failure": 2
+  },
+  "agenta": {
+    "success": 0,
+    "failure": 1
+  },
+  "agentb": {
+    "success": 0,
+    "failure": 1
+  },
+  "lastResult": "DEAL",
+  "successRate": 0.885616037725195,
+  "breakdownRate": 0.55
+}

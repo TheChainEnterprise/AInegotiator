@@ -1,0 +1,6 @@
+{
+  "dynamicRules": [
+    "Prioritize Value Validation over price discussion",
+    "If 'price_expensive' objection appears, always pivot to 'clinical safety' first"
+  ]
+}

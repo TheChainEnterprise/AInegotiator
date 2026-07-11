@@ -1,0 +1,16 @@
+{
+  "businessName": "Luxury Lasers",
+  "pricing": { 
+    "laser_hair": 150, 
+    "botox": 300 
+  },
+  "operatingHours": "Mon-Fri 9am-6pm",
+  "bookingLink": "https://luxurylasers.com/book",
+  "tone": "Professional, luxury, welcoming",
+  "settings": {
+    "isActive": true,
+    "webhookEnabled": false,
+    "webhookUrl": "",
+    "primaryColor": "#000000"
+  }
+}

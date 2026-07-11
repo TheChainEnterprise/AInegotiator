@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Chain | VAL</title>
+    <style>
+        :root { --accent: #06b6d4; --border: #27272a; --bg-main: #09090b; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background: #09090b; color: #f4f4f5; display: flex; height: 100vh; overflow: hidden; }
+        
+        .logo-img { width: 120px; height: 120px; object-fit: contain; display: block; }
+        
+        .queue-panel { width: 22%; background: #0c0c0e; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .dashboard-panel { width: 43%; padding: 30px; overflow-y: auto; background: var(--bg-main); border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 24px; }
+        .chat-panel { width: 35%; display: flex; justify-content: center; align-items: center; background: #121214; padding: 20px; }
+        
+        .queue-header { padding: 24px; border-bottom: 1px solid var(--border); font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #a1a1aa; }
+        .client-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .client-card { padding: 20px; border-bottom: 1px solid #1f1f23; cursor: pointer; transition: background 0.2s; display: flex; flex-direction: column; gap: 6px; }
+        .client-card:hover { background: #18181b; }
+        .client-card.active { background: #18181b; border-left: 4px solid #fff; }
+        .client-name { font-weight: 600; font-size: 0.95rem; color: #fff; }
+        .client-meta { font-size: 0.8rem; color: #a1a1aa; display: flex; justify-content: space-between; }
+        
+        .company-footer { padding: 20px; border-top: 1px solid #1f1f23; font-size: 0.8rem; color: #a1a1aa; line-height: 1.6; }
+
+        .brand-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+        .logo-area { display: flex; align-items: center; gap: 12px; }
+        .logo-text { font-size: 1.1rem; font-weight: 700; color: #fff; }
+        .contact-pill { background: #18181b; border: 1px solid var(--border); padding: 10px; border-radius: 6px; font-size: 0.75rem; color: #a1a1aa; }
+        .whatsapp-link { color: #22c55e; text-decoration: none; font-weight: 600; }
+        
+        .grid-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+        .stat-card { background: #18181b; border: 1px solid var(--border); padding: 20px; border-radius: 12px; }
+        .stat-label { font-size: 0.75rem; color: #a1a1aa; margin-bottom: 6px; text-transform: uppercase; }
+        .stat-value { font-size: 1.6rem; font-weight: 700; color: #fff; }
+        
+        .analytics-card { background: #18181b; border: 1px solid var(--border); padding: 20px; border-radius: 12px; }
+        .metric-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 0.85rem; }
+
+        .matrix-card { background: #18181b; border: 1px solid var(--border); padding: 20px; border-radius: 12px; display: flex; flex-direction: column; gap: 12px; }
+        .matrix-header { font-size: 0.85rem; font-weight: 600; color: #fff; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        .badge { padding: 4px 8px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+        .badge.neutral { background: #27272a; color: #a1a1aa; }
+        .badge.active { background: #1e3a8a; color: #93c5fd; }
+        .badge.success { background: #14532d; color: #bbf7d0; }
+        
+        .log-terminal { background: #000; border: 1px solid var(--border); border-radius: 8px; padding: 12px; font-family: monospace; font-size: 0.75rem; color: #a3e635; height: 140px; overflow-y: auto; }
+
+        .chat-container { width: 100%; height: 90vh; background: #ffffff; border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e2e8f0; }
+        .chat-header { background: #09090b; color: #ffffff; padding: 18px; display: flex; justify-content: space-between; align-items: center; }
+        .chat-messages { flex: 1; padding: 20px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 12px; }
+        .message { max-width: 85%; padding: 12px 16px; border-radius: 12px; font-size: 0.9rem; }
+        .message.user { background: #09090b; color: white; align-self: flex-end; }
+        .message.ai { background: #ffffff; color: #0f172a; align-self: flex-start; border: 1px solid #e2e8f0; white-space: pre-line; }
+        
+        #typingBubble { 
+            align-self: flex-start; background: #e2e8f0; color: #475569; 
+            padding: 8px 16px; border-radius: 18px; font-weight: 900; font-size: 1.2rem;
+            letter-spacing: 2px; display: none;
+        }
+
+        .chat-input-area { padding: 16px; background: #ffffff; border-top: 1px solid #f1f5f9; display: flex; flex-direction: column; gap: 10px; }
+        .input-row { display: flex; gap: 10px; width: 100%; }
+        .chat-input-area input { flex: 1; padding: 12px 18px; border: 1px solid #e2e8f0; border-radius: 20px; outline: none; }
+        .chat-input-area button { background: #09090b; color: white; border: none; padding: 0 20px; border-radius: 20px; font-weight: 600; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<div class="queue-panel">
+    <div class="queue-header">Live Lead Pipeline</div>
+    <div class="client-list" id="clientList"></div>
+    <div class="company-footer">
+        <p><strong>The Chain Technologies</strong></p>
+        <p>CEO: Andres Karhu</p>
+        <p>WhatsApp: <a class="whatsapp-link" href="https://wa.me/66886675802" target="_blank">+66 88 667 5802</a></p>
+    </div>
+</div>
+
+<div class="dashboard-panel">
+    <div class="brand-header">
+        <div class="logo-area">
+            <img src="logo.png" alt="Logo" class="logo-img">
+            <div class="logo-text">VAL</div>
+        </div>
+        <select id="clinicSelector" onchange="switchClinic(this.value)" style="background: #18181b; color: #fff; padding: 10px; border-radius: 6px; border: 1px solid var(--border);">
+            <option value="default-clinic">Demo-Clinic</option>
+            <option value="clinic-01">Clinic-01</option>
+            <option value="clinic-02">Clinic-02</option>
+            <option value="clinic-03">Clinic-03</option>
+            <option value="clinic-04">Clinic-04</option>
+            <option value="clinic-05">Clinic-05</option>
+            <option value="clinic-06">Clinic-06</option>
+            <option value="clinic-07">Clinic-07</option>
+            <option value="clinic-08">Clinic-08</option>
+            <option value="clinic-09">Clinic-09</option>
+            <option value="clinic-10">Clinic-10</option>
+        </select>
+    </div>
+    
+    <div class="grid-stats">
+        <div class="stat-card">
+            <div class="stat-label">Pipeline Contract Price</div>
+            <div class="stat-value" id="dashPrice">€1,000</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Deal Pipeline State</div>
+            <div class="stat-value" style="font-size: 1.1rem; margin-top: 6px;"><span class="badge active" id="dashStatus">Active Negotiation</span></div>
+        </div>
+    </div>
+
+    <div class="analytics-card">
+        <div class="matrix-header">Performance Analytics</div>
+        <div class="metric-row"><span>Conversion Velocity</span><span style="color:var(--accent)">+12.4%</span></div>
+        <div class="metric-row"><span>Engagement Depth</span><span>High</span></div>
+    </div>
+
+    <div class="matrix-card">
+        <div class="matrix-header">Behavioral Token Segmentation</div>
+        <div class="metric-row"><span>Classification Matrix:</span><span id="metricProfile" class="badge neutral">Analyzing...</span></div>
+        <div class="metric-row"><span>Objection Vector:</span><span id="metricObjection" style="color:#f43f5e;">None</span></div>
+        <div class="metric-row"><span>Concession Strategy:</span><span id="metricStep" style="color:#f59e0b;">Baseline Stable</span></div>
+    </div>
+
+    <div class="matrix-card">
+        <div class="matrix-header">Automated Pipeline Console Logs</div>
+        <div class="log-terminal" id="logTerminal">[SYSTEM INIT] Core telemetry queue nodes operational...</div>
+    </div>
+</div>
+
+<div class="chat-panel">
+    <div class="chat-container">
+        <div class="chat-header">
+            <h2 id="chatClientName">Select a Lead</h2>
+            <span style="font-size:0.75rem; color:#a1a1aa;" id="chatSessionId">Session: None</span>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+            <div class="message ai">Select a lead from the pipeline to begin.</div>
+        </div>
+        <div class="chat-input-area">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 5px;">
+                <input type="checkbox" id="overrideToggle" onchange="toggleOverride()">
+                <label for="overrideToggle" style="font-size: 0.7rem; color: #a1a1aa; cursor: pointer;">Human Override</label>
+            </div>
+            <div class="input-row">
+                <input type="text" id="userInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let activeSession = null;
+    let CURRENT_TENANT = "default-clinic"; 
+    let isProcessing = false; 
+    const logTerminal = document.getElementById('logTerminal');
+
+    function writeLog(text) {
+        logTerminal.innerHTML += `\n[${new Date().toLocaleTimeString()}] ${text}`;
+        logTerminal.scrollTop = logTerminal.scrollHeight;
+    }
+
+    function switchClinic(tenantId) {
+        CURRENT_TENANT = tenantId;
+        activeSession = null; 
+        document.getElementById('chatMessages').innerHTML = '<div class="message ai">Clinic workspace switched. Select a lead to begin.</div>';
+        document.getElementById('chatClientName').innerText = "Select a Lead";
+        document.getElementById('chatSessionId').innerText = "Session: None";
+        writeLog(`System: Switched to workspace: ${tenantId}`);
+        fetchClients();
+    }
+
+    async function toggleOverride() {
+        if (!activeSession) return;
+        const isChecked = document.getElementById('overrideToggle').checked;
+        const mode = isChecked ? 'HUMAN' : 'AI';
+        try {
+            const response = await fetch('/api/override', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-tenant-id': CURRENT_TENANT },
+                body: JSON.stringify({ sessionId: activeSession, mode: mode })
+            });
+            const data = await response.json();
+            writeLog(`System: Override mode set to ${data.status}`);
+        } catch (e) { writeLog("❌ Failed to set override."); }
+    }
+
+    async function fetchClients() {
+        const res = await fetch('/api/clients', { headers: { 'x-tenant-id': CURRENT_TENANT } });
+        const list = await res.json();
+        const container = document.getElementById('clientList');
+        container.innerHTML = '';
+        list.forEach(c => {
+            const card = document.createElement('div');
+            card.className = `client-card ${c.id === activeSession ? 'active' : ''}`;
+            card.onclick = () => selectClient(c);
+            const statusBadge = c.status === 'Committed' ? '<span class="badge success">Won</span>' : '<span class="badge active">Live</span>';
+            card.innerHTML = `<div class="client-name">${c.name}</div><div class="client-meta"><span>${c.label}</span><span>€${c.price}</span></div><div style="margin-top:5px; align-self:flex-start;">${statusBadge}</div>`;
+            container.appendChild(card);
+        });
+    }
+
+    function selectClient(client) {
+        activeSession = client.id;
+        document.getElementById('chatClientName').innerText = client.name;
+        document.getElementById('chatSessionId').innerText = `Session: ${client.id}`;
+        document.getElementById('dashPrice').innerText = `€${client.price}`;
+        document.getElementById('metricProfile').innerText = client.analysis.buyerProfile;
+        document.getElementById('metricObjection').innerText = client.analysis.objectionType;
+        document.getElementById('metricStep').innerText = client.analysis.concessionStep;
+        document.getElementById('overrideToggle').checked = client.status === 'Manual Override';
+        
+        const chatMessages = document.getElementById('chatMessages');
+        chatMessages.innerHTML = '';
+        
+        if (client.history && client.history.length > 0) {
+            client.history.forEach(msg => {
+                if (msg.role === 'assistant') {
+                    const div = document.createElement('div');
+                    div.className = 'message ai';
+                    div.textContent = msg.content.replace(/\[\[.*?\]\]/g, '').replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]/g, '').trim();
+                    chatMessages.appendChild(div);
+                } else if (msg.role === 'user') {
+                    const div = document.createElement('div');
+                    div.className = 'message user';
+                    div.textContent = msg.content.replace(/\[HUMAN\]:\s*/, '');
+                    chatMessages.appendChild(div);
+                }
+            });
+        } else {
+            chatMessages.innerHTML = `<div class="message ai">Hello! Welcome to our premium aesthetic clinic. How can I assist you with your personalized skincare goals today?</div>`;
+        }
+        writeLog(`Switched focus node workspace to channel: ${client.name}`);
+        fetchClients();
+    }
+
+    async function sendMessage() {
+        if (isProcessing || !activeSession) return;
+        const inputField = document.getElementById('userInput');
+        const text = inputField.value.trim();
+        if (!text) return;
+
+        isProcessing = true;
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'message user';
+        msgDiv.textContent = text;
+        document.getElementById('chatMessages').appendChild(msgDiv);
+        inputField.value = '';
+
+        // Dynamic Thinking Bubble
+        const typingDiv = document.createElement('div');
+        typingDiv.id = 'typingBubble';
+        typingDiv.textContent = '...';
+        typingDiv.style.display = 'block';
+        document.getElementById('chatMessages').appendChild(typingDiv);
+        document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-tenant-id': CURRENT_TENANT },
+                body: JSON.stringify({ sessionId: activeSession, message: text })
+            });
+            const data = await response.json();
+            
+            typingDiv.remove(); // Remove thinking bubble
+
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'message ai';
+            aiDiv.textContent = data.response;
+            document.getElementById('chatMessages').appendChild(aiDiv);
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+
+            document.getElementById('metricProfile').innerText = data.analysis.buyerProfile;
+            document.getElementById('metricObjection').innerText = data.analysis.objectionType;
+            document.getElementById('metricStep').innerText = data.analysis.concessionStep;
+            document.getElementById('dashPrice').innerText = `€${data.currentPrice}`;
+            fetchClients();
+        } catch (e) { 
+            typingDiv.remove();
+            writeLog("❌ Network transmission break."); 
+        } finally { isProcessing = false; }
+    }
+
+    function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
+    fetchClients();
+</script>
+</body>
+</html>

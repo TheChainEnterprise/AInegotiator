@@ -1,0 +1,44 @@
+{
+  "CONTRACT_RULES": {
+    "basePrice": 1000,
+    "absoluteFloor": 800
+  },
+  "CLINIC_PROFILE": {
+    "name": "our premium aesthetic clinic",
+    "currency": "€",
+    "hours": "10:00 to 18:00 daily",
+    "location": "Central downtown clinic",
+    "treatments": [
+      "Premium Laser Hair Removal (silky-smooth, lasting results)",
+      "Anti-Aging Consultations (tailored plans to rejuvenate appearance)",
+      "Luxury Skincare Treatments (bespoke solutions for radiant, healthy skin)"
+    ]
+  },
+  "CLINIC_ALERTS": {
+    "default-clinic": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-01": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-02": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-03": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-04": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-05": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-06": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-07": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-08": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-09": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=",
+    "clinic-10": "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text="
+  },
+  "CLINIC_CALENDARS": {
+    "default-clinic": "",
+    "clinic-01": "",
+    "clinic-02": "",
+    "clinic-03": "",
+    "clinic-04": "",
+    "clinic-05": "",
+    "clinic-06": "",
+    "clinic-07": "",
+    "clinic-08": "",
+    "clinic-09": "",
+    "clinic-10": ""
+  },
+  "TRAINING_ENABLED": false
+}
