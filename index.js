@@ -251,9 +251,8 @@ const logAudit = (tenantId, sessionId, input, output, analysis) => {
 };
 
 // API ENDPOINTS
-app.get('/api/clients', (req, res) => {
-app.get('/api/leads', (req, res) => {
 
+app.get('/api/leads', (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
 
     const leadsPath = path.join(getTenantDir(tenantId), "leads.json");
@@ -267,26 +266,48 @@ app.get('/api/leads', (req, res) => {
         .split("\n")
         .filter(line => line.trim() !== "");
 
-    const leads = lines.map(line => {
-        try {
-            return JSON.parse(line);
-        } catch {
-            return null;
-        }
-    }).filter(Boolean);
+    const leads = lines
+        .map(line => {
+            try {
+                return JSON.parse(line);
+            } catch {
+                return null;
+            }
+        })
+        .filter(Boolean);
 
     res.json(leads.reverse());
-
 });
+
+app.get('/api/clients', (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
+
     const vaultPath = getVaultPath(tenantId);
-    let sessionVault = fs.existsSync(vaultPath) ? JSON.parse(fs.readFileSync(vaultPath, "utf8")) : INITIAL_VAULT;
-    if (!fs.existsSync(vaultPath)) fs.writeFileSync(vaultPath, JSON.stringify(sessionVault, null, 2));
-    res.json(Object.values(sessionVault).map(c => ({ id: c.id, name: c.name, label: c.label, price: c.price, status: c.status, analysis: c.analysis })));
+
+    let sessionVault = fs.existsSync(vaultPath)
+        ? JSON.parse(fs.readFileSync(vaultPath, "utf8"))
+        : INITIAL_VAULT;
+
+    if (!fs.existsSync(vaultPath)) {
+        fs.writeFileSync(
+            vaultPath,
+            JSON.stringify(sessionVault, null, 2)
+        );
+    }
+
+    res.json(
+        Object.values(sessionVault).map(c => ({
+            id: c.id,
+            name: c.name,
+            label: c.label,
+            price: c.price,
+            status: c.status,
+            analysis: c.analysis
+        }))
+    );
 });
 
-app.post('/api/webhook/whatsapp', async (req, res) => {
-    console.log(`📥 [TELEMETRY NODE]: Incoming packet: ${JSON.stringify(req.body)}`);
+app.post('/api/webhook/whatsapp', async (req, res) => {    console.log(`📥 [TELEMETRY NODE]: Incoming packet: ${JSON.stringify(req.body)}`);
     res.sendStatus(200);
 });
 
