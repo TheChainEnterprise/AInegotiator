@@ -1007,9 +1007,20 @@ if (sentences && sentences.length > 3) {
         logDealSuccess(tenantId, session);
     }
 
-    session.history.push({ role: 'assistant', content: fullReply });
-    if (session.history.length > 20) session.history = [session.history[0], ...session.history.slice(-10)];
-    
+session.history.push({
+    role: "assistant",
+    content: cleanReply
+});
+
+// Keep the system prompt + only the last 3 user/assistant exchanges
+const systemPrompt = session.history[0];
+
+const recentHistory = session.history.slice(-6);
+
+session.history = [
+    systemPrompt,
+    ...recentHistory
+];    
     logAudit(tenantId, sessionId, message, fullReply, session.analysis);
     fs.writeFileSync(vaultPath, JSON.stringify(sessionVault, null, 2));
     res.json({ response: cleanReply, currentPrice: session.price, status: session.status, analysis: session.analysis });
