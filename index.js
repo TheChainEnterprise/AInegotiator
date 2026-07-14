@@ -492,6 +492,562 @@ app.get('/api/leads', (req, res) => {
     res.json(leads.reverse());
 });
 
+// ====================================
+// ADMIN CLIENT MANAGEMENT
+// ====================================
+
+app.get("/api/admin/clients", (req, res) => {
+
+    const clientsRoot = path.join(__dirname, "data", "clients");
+
+    if (!fs.existsSync(clientsRoot)) {
+        return res.json([]);
+    }
+
+    const folders = fs.readdirSync(clientsRoot, { withFileTypes: true });
+
+    const clients = folders
+        .filter(folder => folder.isDirectory())
+        .map(folder => {
+
+            const businessPath = path.join(
+                clientsRoot,
+                folder.name,
+                "business.json"
+            );
+
+            if (!fs.existsSync(businessPath))
+                return null;
+
+            try {
+
+                return {
+                    id: folder.name,
+                    ...JSON.parse(
+                        fs.readFileSync(
+                            businessPath,
+                            "utf8"
+                        )
+                    )
+                };
+
+            } catch {
+
+                return null;
+
+            }
+
+        })
+        .filter(Boolean);
+
+    res.json(clients);
+
+});
+
+app.post("/api/admin/clients", (req, res) => {
+
+    const {
+        id,
+        businessName,
+        industry,
+        website,
+        email,
+        phone
+    } = req.body;
+
+    if (!id || !businessName) {
+        return res.status(400).json({
+            error: "Missing client information."
+        });
+    }
+
+const tenantDir = path.join(
+    __dirname,
+    "data",
+    "clients",
+    id
+);
+
+if (fs.existsSync(tenantDir)) {
+    return res.status(409).json({
+        error: "Client already exists."
+    });
+}
+
+fs.mkdirSync(tenantDir, {
+    recursive: true
+});
+
+    fs.writeFileSync(
+        path.join(tenantDir, "business.json"),
+        JSON.stringify({
+            businessName,
+            industry,
+            website,
+            email,
+            phone,
+            description: "",
+            address: "",
+            whatsapp: phone,
+            bookingUrl: "",
+            tone: "Professional",
+            openingHours: {}
+        }, null, 2)
+    );
+
+    fs.writeFileSync(
+        path.join(tenantDir, "services.json"),
+        JSON.stringify([], null, 2)
+    );
+
+    fs.writeFileSync(
+        path.join(tenantDir, "faq.json"),
+        JSON.stringify([], null, 2)
+    );
+
+    fs.writeFileSync(
+        path.join(tenantDir, "knowledge.json"),
+        JSON.stringify([], null, 2)
+    );
+
+    fs.writeFileSync(
+        path.join(tenantDir, "availability.json"),
+        JSON.stringify({
+            availableSlots: []
+        }, null, 2)
+    );
+
+    fs.writeFileSync(
+        path.join(tenantDir, "leads.json"),
+        ""
+    );
+
+    fs.writeFileSync(
+        getVaultPath(id),
+        JSON.stringify({}, null, 2)
+    );
+
+    fs.writeFileSync(
+        path.join(tenantDir, "audit.json"),
+        ""
+    );
+
+    fs.writeFileSync(
+        path.join(tenantDir, "deals.json"),
+        ""
+    );
+
+    res.json({
+        success: true
+    });
+
+});
+
+app.delete("/api/admin/clients/:id", (req, res) => {
+
+    const tenantDir = getTenantDir(req.params.id);
+
+    if (!fs.existsSync(tenantDir)) {
+        return res.status(404).json({
+            error: "Client not found."
+        });
+    }
+
+    fs.rmSync(tenantDir, {
+        recursive: true,
+        force: true
+    });
+
+    res.json({
+        success: true
+    });
+
+});
+
+// ====================================
+// ADMIN BUSINESS PROFILE
+// ====================================
+
+app.get("/api/admin/profile", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const businessPath = path.join(
+        getTenantDir(tenantId),
+        "business.json"
+    );
+
+    if (!fs.existsSync(businessPath)) {
+
+        return res.json({
+            businessName: "",
+            industry: "",
+            description: "",
+            website: "",
+            email: "",
+            phone: "",
+            whatsapp: "",
+            address: "",
+            bookingUrl: "",
+            tone: "Professional",
+            openingHours: {}
+        });
+
+    }
+
+    res.json(
+        JSON.parse(
+            fs.readFileSync(
+                businessPath,
+                "utf8"
+            )
+        )
+    );
+
+});
+
+app.post("/api/admin/profile", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    fs.writeFileSync(
+        path.join(
+            getTenantDir(tenantId),
+            "business.json"
+        ),
+        JSON.stringify(req.body, null, 2)
+    );
+
+    res.json({
+        success: true
+    });
+
+});
+
+// ====================================
+// ADMIN AI BEHAVIOUR
+// ====================================
+
+app.get("/api/admin/behaviour", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const behaviourPath = path.join(
+        getTenantDir(tenantId),
+        "behaviour.json"
+    );
+
+    if (!fs.existsSync(behaviourPath)) {
+
+        return res.json({
+            personality: "Professional",
+            responseLength: "Short",
+            emojiUsage: false,
+            salesStyle: "Balanced",
+            humor: false,
+            greeting: "",
+            closing: "",
+            customInstructions: ""
+        });
+
+    }
+
+    res.json(
+        JSON.parse(
+            fs.readFileSync(
+                behaviourPath,
+                "utf8"
+            )
+        )
+    );
+
+});
+
+app.post("/api/admin/behaviour", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    fs.writeFileSync(
+        path.join(
+            getTenantDir(tenantId),
+            "behaviour.json"
+        ),
+        JSON.stringify(req.body, null, 2)
+    );
+
+    res.json({
+        success: true
+    });
+
+});
+
+// ====================================
+// ADMIN FAQ
+// ====================================
+
+app.get("/api/admin/faq", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(
+        getTenantDir(tenantId),
+        "faq.json"
+    );
+
+    if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, JSON.stringify([], null, 2));
+    }
+
+    res.json(
+        JSON.parse(fs.readFileSync(file, "utf8"))
+    );
+
+});
+
+app.post("/api/admin/faq", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    fs.writeFileSync(
+        path.join(
+            getTenantDir(tenantId),
+            "faq.json"
+        ),
+        JSON.stringify(req.body, null, 2)
+    );
+
+    res.json({
+        success: true
+    });
+
+});
+
+// ====================================
+// ADMIN SERVICES
+// ====================================
+
+app.get("/api/admin/services", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(getTenantDir(tenantId), "services.json");
+
+    if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, JSON.stringify([], null, 2));
+    }
+
+    res.json(JSON.parse(fs.readFileSync(file, "utf8")));
+
+});
+
+app.post("/api/admin/services", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    fs.writeFileSync(
+        path.join(getTenantDir(tenantId), "services.json"),
+        JSON.stringify(req.body, null, 2)
+    );
+
+    res.json({ success: true });
+
+});
+
+// ====================================
+// ADMIN KNOWLEDGE
+// ====================================
+
+app.get("/api/admin/knowledge", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(getTenantDir(tenantId), "knowledge.json");
+
+    if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, JSON.stringify([], null, 2));
+    }
+
+    res.json(JSON.parse(fs.readFileSync(file, "utf8")));
+
+});
+
+app.post("/api/admin/knowledge", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    fs.writeFileSync(
+        path.join(getTenantDir(tenantId), "knowledge.json"),
+        JSON.stringify(req.body, null, 2)
+    );
+
+    res.json({ success: true });
+
+});
+
+// ====================================
+// ADMIN INTEGRATIONS
+// ====================================
+
+app.get("/api/admin/integrations", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(getTenantDir(tenantId), "integrations.json");
+
+    if (!fs.existsSync(file)) {
+
+        const defaults = {
+            enabled: false,
+            provider: "google",
+            calendarId: ""
+        };
+
+        fs.writeFileSync(file, JSON.stringify(defaults, null, 2));
+
+        return res.json(defaults);
+
+    }
+
+    res.json(JSON.parse(fs.readFileSync(file, "utf8")));
+
+});
+
+app.post("/api/admin/integrations", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    fs.writeFileSync(
+        path.join(getTenantDir(tenantId), "integrations.json"),
+        JSON.stringify(req.body, null, 2)
+    );
+
+    res.json({ success: true });
+
+});
+
+// ====================================
+// ADMIN WEBSITE IMPORT
+// ====================================
+
+app.get("/api/admin/import", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(getTenantDir(tenantId), "import.json");
+
+    if (!fs.existsSync(file)) {
+        return res.json({ exists: false });
+    }
+
+    res.json({
+        exists: true,
+        ...JSON.parse(fs.readFileSync(file, "utf8"))
+    });
+
+});
+
+app.post("/api/admin/import", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const data = {
+        website: req.body.website,
+        status: "Imported",
+        createdAt: new Date().toISOString()
+    };
+
+    fs.writeFileSync(
+        path.join(getTenantDir(tenantId), "import.json"),
+        JSON.stringify(data, null, 2)
+    );
+
+    res.json({ success: true });
+
+});
+
+app.delete("/api/admin/import", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(getTenantDir(tenantId), "import.json");
+
+    if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+    }
+
+    res.json({ success: true });
+
+});
+
+// ====================================
+// GOOGLE CALENDAR PLACEHOLDER API
+// ====================================
+
+app.get("/api/admin/calendar/connect", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    res.json({
+        success: false,
+        url: `http://localhost:3001/api/admin/calendar/oauth?tenant=${tenantId}`
+    });
+
+});
+
+app.get("/api/admin/calendar/list", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const integrationsPath = path.join(
+        getTenantDir(tenantId),
+        "integrations.json"
+    );
+
+    let connected = false;
+
+    if (fs.existsSync(integrationsPath)) {
+
+        try {
+
+            const settings = JSON.parse(
+                fs.readFileSync(integrationsPath, "utf8")
+            );
+
+            connected = settings.enabled === true;
+
+        } catch {}
+
+    }
+
+    res.json({
+        connected,
+        calendars: [],
+        message: connected
+            ? "Calendar integration is enabled. OAuth is not connected yet."
+            : "Calendar integration is disabled."
+    });
+
+});
+
+app.get("/api/admin/calendar/oauth", (req, res) => {
+
+    res.send(`
+        <html>
+            <body style="font-family:Arial;padding:40px;">
+                <h2>Google Calendar Integration</h2>
+                <p>This page is a placeholder.</p>
+                <p>The real Google OAuth flow will be implemented in the next phase.</p>
+                <p>You successfully reached the backend.</p>
+            </body>
+        </html>
+    `);
+
+});
+
+// ====================================
+// TELEMETRY CLIENT SESSIONS
+// ====================================
+
 app.get('/api/clients', (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
 
@@ -856,12 +1412,12 @@ After every required field has been collected:
 • Never claim the appointment has already been booked.
 • Never claim that an email, SMS, WhatsApp message or calendar invitation has been sent unless this system has actually sent it.
 • Only provide a booking link if one exists in the Business Profile.`
-});
+};
 
-const messagesForGroq = [
-    ...session.history,
-    bookingSystemMessage
-];
+const messagesForGroq =
+    session.conversationState === "BOOKING"
+        ? [...session.history, bookingSystemMessage]
+        : session.history;
 
 const response = await groq.chat.completions.create({
     model: "llama-3.1-8b-instant",

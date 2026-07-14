@@ -1,0 +1,17 @@
+{
+  "businessName": "The Chain Technologies1",
+  "industry": "Software Development",
+  "website": "thechain.tech",
+  "email": "mrandreskarhu@gmail.com",
+  "phone": "0468491094",
+  "description": "",
+  "whatsapp": "",
+  "address": "",
+  "bookingUrl": "",
+  "openingHours": {
+    "Mon-Fri": "",
+    "Sat": "",
+    "Sun": ""
+  },
+  "tone": "Professional"
+}

@@ -1,0 +1,9 @@
+[
+  {
+    "id": 1,
+    "name": "AI Receptionist",
+    "description": "24/7 AI receptionist that answers customers, qualifies leads and books appointments.",
+    "price": 500,
+    "monthly": 50
+  }
+]

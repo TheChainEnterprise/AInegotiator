@@ -1,0 +1,15 @@
+{
+  "website": {
+    "enabled": false,
+
+    "baseUrl": "https://thechain.tech",
+
+    "selectedPages": [],
+
+    "lastSync": null
+  },
+
+  "documents": [],
+
+  "manualKnowledge": []
+}

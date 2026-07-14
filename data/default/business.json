@@ -1,0 +1,23 @@
+{
+  "businessName": "The Chain Technologies",
+  "industry": "Artificial Intelligence",
+
+  "description": "The Chain Technologies builds AI employees that answer, negotiate, qualify leads, book appointments, and automate customer communication for businesses.",
+
+  "phone": "",
+  "email": "info@thechain.tech",
+  "website": "https://thechain.tech",
+  "whatsapp": "+61468491094",
+
+  "address": "",
+
+  "bookingUrl": "https://thechain.tech/book-demo",
+
+  "openingHours": {
+    "Mon-Fri": "09:00-18:00",
+    "Sat": "Closed",
+    "Sun": "Closed"
+  },
+
+  "tone": "Professional, confident, modern"
+}
