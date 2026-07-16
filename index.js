@@ -695,11 +695,7 @@ app.put("/api/bookings/:id", (req, res) => {
 
 app.get("/api/admin/clients", (req, res) => {
 
-    const clientsRoot = path.join(
-        __dirname,
-        "data",
-        "clients"
-    );
+const clientsRoot = path.dirname(getTenantDir("default"));
 
     if (!fs.existsSync(clientsRoot)) {
         return res.json([]);
@@ -764,17 +760,17 @@ app.post("/api/admin/clients", (req, res) => {
         });
     }
 
-    const tenantDir = getTenantDir(id);
+const tenantDir = getTenantDir(id);
 
-    if (fs.existsSync(tenantDir)) {
-        return res.status(409).json({
-            error: "Client already exists."
-        });
-    }
-
-    fs.mkdirSync(tenantDir, {
-        recursive: true
+if (fs.existsSync(tenantDir)) {
+    return res.status(409).json({
+        error: "Client already exists."
     });
+}
+
+fs.mkdirSync(tenantDir, {
+    recursive: true
+});
 
     fs.writeFileSync(
         path.join(tenantDir, "business.json"),
@@ -833,24 +829,6 @@ app.delete("/api/admin/clients/:id", (req, res) => {
         success: true
     });
 
-});
-
-// ====================================
-// AUTOMATED FEEDBACK LOOP
-// ====================================
-
-cron.schedule("59 23 * * *", () => {
-    const clientsDir = path.join(__dirname, "..", "Ai-negotiator", "data", "clients");
-    if (!fs.existsSync(clientsDir)) return;
-    const tenantDirs = fs.readdirSync(clientsDir);
-    let totalDeals = 0;
-    tenantDirs.forEach((tenantId) => {
-        const dealPath = path.join(clientsDir, tenantId, "deals.json");
-        if (fs.existsSync(dealPath)) {
-            totalDeals += fs.readFileSync(dealPath, "utf8").split("\n").filter(Boolean).length;
-        }
-    });
-    sendAlert("admin", `📈 NIGHTLY REPORT: ${totalDeals} total deals closed.`);
 });
 
 // ====================================
@@ -1722,11 +1700,7 @@ cron.schedule("59 23 * * *", () => {
 
     console.log("Generating nightly report...");
 
-    const clientsDir = path.join(
-        __dirname,
-        "data",
-        "clients"
-    );
+const clientsDir = path.dirname(getTenantDir("default"));
 
     if (!fs.existsSync(clientsDir))
         return;
@@ -1774,11 +1748,22 @@ cron.schedule("*/10 * * * *", async () => {
 
     try {
 
-        console.log(
-            "Refreshing client calendars..."
-        );
+        console.log("Refreshing client calendars...");
 
-        await updateCalendarSync("default");
+const clientsRoot = path.dirname(getTenantDir("default"));
+
+        if (!fs.existsSync(clientsRoot)) {
+            return;
+        }
+
+        const tenants = fs
+            .readdirSync(clientsRoot, { withFileTypes: true })
+            .filter(dir => dir.isDirectory())
+            .map(dir => dir.name);
+
+        for (const tenantId of tenants) {
+            await updateCalendarSync(tenantId);
+        }
 
     } catch (err) {
 
