@@ -1,9 +1,18 @@
 [
   {
     "id": 1784034587858,
-    "name": "A",
-    "description": "A",
-    "price": 1,
-    "monthly": 1
+    "name": "Val",
+    "description": "Val is an AI-powered negotiating receptionist that answers calls, qualifies leads, books appointments, negotiates within your business rules, and communicates naturally with customers 24/7.",
+    "price": 500,
+    "monthly": 50,
+    "currency": "EUR",
+    "category": "AI Receptionist"
+  },
+  {
+    "id": 1784188066913,
+    "name": "",
+    "description": "",
+    "price": 0,
+    "monthly": 0
   }
 ]

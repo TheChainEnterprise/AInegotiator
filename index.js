@@ -11,6 +11,10 @@ const {
     getVaultPath,
 } = require("./engine/tenants");
 
+const {
+    retrieveRelevantKnowledge,
+} = require("./engine/retrieval");
+
 // Use the environment variable if available, otherwise use the fallback for local testing
 const finalApiKey = process.env.GROQ_API_KEY || "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";
 const groq = new Groq({ apiKey: finalApiKey });
@@ -155,7 +159,10 @@ const { CONTRACT_RULES, TRAINING_ENABLED } = config;
 // DYNAMIC PROMPT BUILDER
 // ====================================
 
-const buildSystemPrompt = (tenantId) => {
+const buildSystemPrompt = (
+    tenantId,
+    userMessage = ""
+) => {
 
     const businessPath = path.join(
         getTenantDir(tenantId),
@@ -187,47 +194,38 @@ const buildSystemPrompt = (tenantId) => {
     // Load Business Knowledge
     // ====================================
 
-    const servicesPath = path.join(
-        getTenantDir(tenantId),
-        "services.json"
-    );
+const retrieved = retrieveRelevantKnowledge({
+    tenantDir: getTenantDir(tenantId),
+    message: userMessage,
+    limit: 5
+});
 
-    const services = fs.existsSync(servicesPath)
-        ? JSON.parse(
-            fs.readFileSync(
-                servicesPath,
-                "utf8"
-            )
-        )
-        : [];
+const services = retrieved
+    .filter(r => r.source === "services.json")
+    .map(r => r.item);
 
-    const faqPath = path.join(
-        getTenantDir(tenantId),
-        "faq.json"
-    );
+const faq = retrieved
+    .filter(r => r.source === "faq.json")
+    .map(r => r.item);
 
-    const faq = fs.existsSync(faqPath)
-        ? JSON.parse(
-            fs.readFileSync(
-                faqPath,
-                "utf8"
-            )
-        )
-        : [];
+const knowledge = retrieved
+    .filter(r => r.source === "knowledge.json")
+    .map(r => r.item);
 
-    const knowledgePath = path.join(
-        getTenantDir(tenantId),
-        "knowledge.json"
-    );
+console.log("========== RETRIEVAL ==========");
+console.log("User:", userMessage);
 
-    const knowledge = fs.existsSync(knowledgePath)
-        ? JSON.parse(
-            fs.readFileSync(
-                knowledgePath,
-                "utf8"
-            )
-        )
-        : [];
+console.log(
+    retrieved.map(result => ({
+        source: result.source,
+        title:
+            result.item.title ||
+            result.item.question ||
+            result.item.name
+    }))
+);
+
+console.log("===============================");
 
     const manifestPath = path.join(
         __dirname,
@@ -492,19 +490,224 @@ app.get('/api/leads', (req, res) => {
     res.json(leads.reverse());
 });
 
+app.delete("/api/leads/:id", (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const file = path.join(getTenantDir(tenantId), "leads.json");
+    const targetId = String(req.params.id);
+
+    console.log(`[DELETE] Request received for ID: ${targetId}`);
+
+    if (!fs.existsSync(file)) {
+        console.log("[DELETE] File not found, returning success");
+        return res.json({ success: true });
+    }
+
+    const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
+    
+    // Explicit filter: keep only leads whose ID does NOT match
+    const remainingLeads = lines.filter(line => {
+        try {
+            const lead = JSON.parse(line);
+            console.log(`[DELETE] Checking lead ID: ${lead.id} against target: ${targetId}`);
+            return String(lead.id) !== targetId;
+        } catch (e) {
+            return false;
+        }
+    });
+
+    console.log(`[DELETE] Original count: ${lines.length}, Remaining count: ${remainingLeads.length}`);
+
+    fs.writeFileSync(file, remainingLeads.map(l => JSON.stringify(l)).join("\n") + (remainingLeads.length ? "\n" : ""));
+    res.json({ success: true });
+});
+
+app.post("/api/leads", (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const leadsPath = path.join(getTenantDir(tenantId), "leads.json");
+
+    // Ensure we are saving a clean object
+    const lead = {
+        id: Date.now(),
+        ...req.body
+    };
+
+    // Use JSON.stringify(lead) directly to prevent double-encoding
+    fs.appendFileSync(leadsPath, JSON.stringify(lead) + "\n");
+
+    res.json({ success: true, lead });
+});
+
+app.put("/api/leads/:id", (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const file = path.join(getTenantDir(tenantId), "leads.json");
+
+    if (!fs.existsSync(file)) return res.status(404).json({ error: "File not found" });
+
+    const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
+    const leads = lines.map(line => JSON.parse(line));
+
+    const index = leads.findIndex(l => String(l.id) === String(req.params.id));
+    if (index === -1) return res.status(404).json({ error: "Lead not found" });
+
+    leads[index] = { ...req.body, id: leads[index].id }; // Force existing ID
+    fs.writeFileSync(file, leads.map(l => JSON.stringify(l)).join("\n") + "\n");
+    
+    res.json({ success: true });
+});
+
+app.get("/api/bookings", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(
+        getTenantDir(tenantId),
+        "bookings.json"
+    );
+
+    if (!fs.existsSync(file)) {
+        fs.writeFileSync(file, "");
+        return res.json([]);
+    }
+
+    const bookings = fs
+        .readFileSync(file, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map(line => JSON.parse(line));
+
+    res.json(bookings.reverse());
+
+});
+
+app.post("/api/bookings", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(
+        getTenantDir(tenantId),
+        "bookings.json"
+    );
+
+    const booking = {
+        id: Date.now(),
+        ...req.body
+    };
+
+    fs.appendFileSync(
+        file,
+        JSON.stringify(booking) + "\n"
+    );
+
+    res.json({
+        success: true,
+        booking
+    });
+
+});
+
+app.delete("/api/bookings/:id", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(
+        getTenantDir(tenantId),
+        "bookings.json"
+    );
+
+    if (!fs.existsSync(file)) {
+        return res.json({ success: true });
+    }
+
+    const bookings = fs
+        .readFileSync(file, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map(line => JSON.parse(line))
+        .filter(b => String(b.id) !== req.params.id);
+
+    fs.writeFileSync(
+        file,
+        bookings.map(b => JSON.stringify(b)).join("\n") +
+            (bookings.length ? "\n" : "")
+    );
+
+    res.json({
+        success: true
+    });
+
+});
+
+app.put("/api/bookings/:id", (req, res) => {
+
+    const tenantId = req.headers["x-tenant-id"] || "default";
+
+    const file = path.join(
+        getTenantDir(tenantId),
+        "bookings.json"
+    );
+
+    if (!fs.existsSync(file)) {
+        return res.status(404).json({
+            error: "Bookings file not found."
+        });
+    }
+
+    const bookings = fs
+        .readFileSync(file, "utf8")
+        .split("\n")
+        .filter(Boolean)
+        .map(line => JSON.parse(line));
+
+    const index = bookings.findIndex(
+        booking => String(booking.id) === req.params.id
+    );
+
+    if (index === -1) {
+        return res.status(404).json({
+            error: "Booking not found."
+        });
+    }
+
+    bookings[index] = {
+        ...bookings[index],
+        ...req.body,
+        id: bookings[index].id
+    };
+
+    fs.writeFileSync(
+        file,
+        bookings
+            .map(booking => JSON.stringify(booking))
+            .join("\n") +
+            (bookings.length ? "\n" : "")
+    );
+
+    res.json({
+        success: true,
+        booking: bookings[index]
+    });
+
+});
+
 // ====================================
 // ADMIN CLIENT MANAGEMENT
 // ====================================
 
 app.get("/api/admin/clients", (req, res) => {
 
-    const clientsRoot = path.join(__dirname, "data", "clients");
+    const clientsRoot = path.join(
+        __dirname,
+        "data",
+        "clients"
+    );
 
     if (!fs.existsSync(clientsRoot)) {
         return res.json([]);
     }
 
-    const folders = fs.readdirSync(clientsRoot, { withFileTypes: true });
+    const folders = fs.readdirSync(clientsRoot, {
+        withFileTypes: true
+    });
 
     const clients = folders
         .filter(folder => folder.isDirectory())
@@ -561,22 +764,17 @@ app.post("/api/admin/clients", (req, res) => {
         });
     }
 
-const tenantDir = path.join(
-    __dirname,
-    "data",
-    "clients",
-    id
-);
+    const tenantDir = getTenantDir(id);
 
-if (fs.existsSync(tenantDir)) {
-    return res.status(409).json({
-        error: "Client already exists."
+    if (fs.existsSync(tenantDir)) {
+        return res.status(409).json({
+            error: "Client already exists."
+        });
+    }
+
+    fs.mkdirSync(tenantDir, {
+        recursive: true
     });
-}
-
-fs.mkdirSync(tenantDir, {
-    recursive: true
-});
 
     fs.writeFileSync(
         path.join(tenantDir, "business.json"),
@@ -595,46 +793,19 @@ fs.mkdirSync(tenantDir, {
         }, null, 2)
     );
 
-    fs.writeFileSync(
-        path.join(tenantDir, "services.json"),
-        JSON.stringify([], null, 2)
-    );
+    fs.writeFileSync(path.join(tenantDir, "services.json"), JSON.stringify([], null, 2));
+    fs.writeFileSync(path.join(tenantDir, "faq.json"), JSON.stringify([], null, 2));
+    fs.writeFileSync(path.join(tenantDir, "knowledge.json"), JSON.stringify([], null, 2));
+    fs.writeFileSync(path.join(tenantDir, "availability.json"), JSON.stringify({ availableSlots: [] }, null, 2));
 
-    fs.writeFileSync(
-        path.join(tenantDir, "faq.json"),
-        JSON.stringify([], null, 2)
-    );
-
-    fs.writeFileSync(
-        path.join(tenantDir, "knowledge.json"),
-        JSON.stringify([], null, 2)
-    );
-
-    fs.writeFileSync(
-        path.join(tenantDir, "availability.json"),
-        JSON.stringify({
-            availableSlots: []
-        }, null, 2)
-    );
-
-    fs.writeFileSync(
-        path.join(tenantDir, "leads.json"),
-        ""
-    );
+    fs.writeFileSync(path.join(tenantDir, "leads.json"), "");
+    fs.writeFileSync(path.join(tenantDir, "bookings.json"), "");
+    fs.writeFileSync(path.join(tenantDir, "audit.json"), "");
+    fs.writeFileSync(path.join(tenantDir, "deals.json"), "");
 
     fs.writeFileSync(
         getVaultPath(id),
         JSON.stringify({}, null, 2)
-    );
-
-    fs.writeFileSync(
-        path.join(tenantDir, "audit.json"),
-        ""
-    );
-
-    fs.writeFileSync(
-        path.join(tenantDir, "deals.json"),
-        ""
     );
 
     res.json({
@@ -662,6 +833,24 @@ app.delete("/api/admin/clients/:id", (req, res) => {
         success: true
     });
 
+});
+
+// ====================================
+// AUTOMATED FEEDBACK LOOP
+// ====================================
+
+cron.schedule("59 23 * * *", () => {
+    const clientsDir = path.join(__dirname, "..", "Ai-negotiator", "data", "clients");
+    if (!fs.existsSync(clientsDir)) return;
+    const tenantDirs = fs.readdirSync(clientsDir);
+    let totalDeals = 0;
+    tenantDirs.forEach((tenantId) => {
+        const dealPath = path.join(clientsDir, tenantId, "deals.json");
+        if (fs.existsSync(dealPath)) {
+            totalDeals += fs.readFileSync(dealPath, "utf8").split("\n").filter(Boolean).length;
+        }
+    });
+    sendAlert("admin", `📈 NIGHTLY REPORT: ${totalDeals} total deals closed.`);
 });
 
 // ====================================
@@ -1283,11 +1472,17 @@ if (
     session.history = [
         {
             role: "system",
-            content: buildSystemPrompt(tenantId)
+            content: buildSystemPrompt(
+                tenantId,
+                message
+            )
         }
     ];
 } else {
-    session.history[0].content = buildSystemPrompt(tenantId);
+    session.history[0].content = buildSystemPrompt(
+        tenantId,
+        message
+    );
 }
 
 if (session.status === 'Manual Override') {
