@@ -1,7 +1,7 @@
 {
   "businessName": "The Chain Technologies",
-  "industry": "Artificial Intelligence Software",
-  "description": "The Chain Technologies builds AI employees for businesses. Our flagship product, Val, is an AI Negotiating Receptionist that answers questions, qualifies leads, negotiates, and books appointments automatically.",
+  "industry": "AI-powered automation, communication, negotiation, and business intelligence solutions",
+  "description": "Provides AI-powered automation, communication, negotiation, and business intelligence solutions",
   "website": "https://thechain.tech",
   "email": "info@thechain.tech",
   "phone": "+66886675802",
@@ -13,5 +13,7 @@
     "Sat": "Closed",
     "Sun": "Closed"
   },
-  "tone": "Professional"
+  "tone": "Professional",
+  "name": "The Chain Technologies",
+  "philosophy": "Every business should have access to an intelligent workforce capable of communicating, negotiating, making decisions and executing work autonomously."
 }

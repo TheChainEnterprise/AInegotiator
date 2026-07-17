@@ -1,0 +1,507 @@
+[
+  {
+    "name": "Examination of the patient/identification of the status",
+    "price": "53"
+  },
+  {
+    "name": "Consultation",
+    "price": "30"
+  },
+  {
+    "name": "Consultation of a specialist doctor",
+    "price": "90"
+  },
+  {
+    "name": "Appointment fee",
+    "price": "15"
+  },
+  {
+    "name": "Appointment fee Health Insurance Fund patients (based on the Health Insurance Act)",
+    "price": "5-20"
+  },
+  {
+    "name": "Injection anesthesia",
+    "price": "20"
+  },
+  {
+    "name": "Using a microscope (10min)",
+    "price": "38"
+  },
+  {
+    "name": "Using a microscope (30min)",
+    "price": "82"
+  },
+  {
+    "name": "Optional grinding of one tooth/filler",
+    "price": "16"
+  },
+  {
+    "name": "Isolation of teeth with cofferdam (special rubber for teeth insulations)",
+    "price": "19"
+  },
+  {
+    "name": "Optragate lip and cheek retractor",
+    "price": "6"
+  },
+  {
+    "name": "Digital X-ray image",
+    "price": "20"
+  },
+  {
+    "name": "Digital panoramic X-ray images",
+    "price": "32"
+  },
+  {
+    "name": "3D X-ray image (according to the size of the region)",
+    "price": "66-98"
+  },
+  {
+    "name": "Digital X-ray (for an external patient – referral required)",
+    "price": "30"
+  },
+  {
+    "name": "Digital panoramic X-ray (for an external patient – referral required)",
+    "price": "42"
+  },
+  {
+    "name": "Skull side view (for an external patient – referral required)",
+    "price": "42"
+  },
+  {
+    "name": "3D X-ray of one area (for an external patient – referral required)",
+    "price": "98"
+  },
+  {
+    "name": "Saving an X-ray image to a Maxilla memory stick",
+    "price": "6"
+  },
+  {
+    "name": "Soda or pearl wash of teeth with Air-Flow",
+    "description": "the price of scaling, optragate might be added",
+    "price": "130"
+  },
+  {
+    "name": "Scaling of one tooth",
+    "price": "11-17"
+  },
+  {
+    "name": "The teaching of professional hygiene practices (10 min)",
+    "price": "55"
+  },
+  {
+    "name": "Installation of a dental decoration",
+    "description": "cost of decoration added approx 16€",
+    "price": "47"
+  },
+  {
+    "name": "Valgendamise kaped koduseks kasutamiseks kahele hambakaarele (lisandub valgendusgeeli hind)",
+    "price": "325"
+  },
+  {
+    "name": "Zoom-whitening (for both dental arches)",
+    "price": "350"
+  },
+  {
+    "name": "Chemical whitening of one tooth",
+    "price": "38"
+  },
+  {
+    "name": "Dental Caries Prophylaxis",
+    "description": "Prevention of dental caries begins during pregnancy: dental check-ups are necessary and carious lesions must be treated without delay."
+  },
+  {
+    "name": "Dental Care",
+    "description": "General dental care for adults and children. Treatment of dental caries (tooth cavities)."
+  },
+  {
+    "name": "Children’s Dental Care",
+    "description": "Children’s dental services by friendly and experienced doctors, children’s cabinet in Tähesaju"
+  },
+  {
+    "name": "Prosthetics",
+    "description": "Oral removable and non-removable and combined dentures"
+  },
+  {
+    "name": "Aesthetic Services",
+    "description": "Teeth whitening, professional cleaning, Air-Flow, dental decorations"
+  },
+  {
+    "name": "Root Canal Treatment",
+    "description": "Relieve tooth pain with our root canal treatment."
+  },
+  {
+    "name": "Oral Surgery",
+    "description": "Maxillofacial surgery. Intraoral operations for the treatment of various diseases, traumas and defects"
+  },
+  {
+    "name": "Implantology",
+    "description": "Treatment and technology related to the artificial tooth root or implant"
+  },
+  {
+    "name": "Gum Plastic",
+    "description": "A surgical procedure that solves medical and aesthetic problems, “growing” or removing gum tissue."
+  },
+  {
+    "name": "Orthodontics",
+    "description": "Correcting the position of the teeth with braces for both children and adults"
+  },
+  {
+    "name": "Orthodontical Aligners",
+    "description": "Correcting the position of the teeth with the help of transparent aligners, Invisalign aligner treatment"
+  },
+  {
+    "name": "Myofunctional Therapy",
+    "description": "Help with various myofunctional disorders, including teeth grinding, pain sensations in the neck, etc"
+  },
+  {
+    "name": "Periodontitis Treatment",
+    "description": "Periodontology, also known as gum disease, involves the prevention, diagnosis, and treatment of periodontal diseases"
+  },
+  {
+    "name": "Dental Check-ups",
+    "description": "Dental check-ups must be conducted and necessary procedures performed at least twice a year for children and once per year for adults."
+  },
+  {
+    "name": "Plaque Removal",
+    "description": "Local prophylactic procedure to remove plaque from teeth."
+  },
+  {
+    "name": "Fissure Sealing",
+    "description": "Sealing of fissures in molars with fluoride-containing material."
+  },
+  {
+    "name": "ICON Caries Treatment",
+    "description": "An innovative solution for early treatment of caries"
+  },
+  {
+    "name": "Laminates",
+    "description": "full-ceramic veneers to cover the front teeth. Laminates can be used to change the color, the shape, and slightly, the size and position of the teeth."
+  },
+  {
+    "name": "Dental bridgework",
+    "description": "a type of prosthesis used to replace missing teeth, where pontic will be attached to the existing abutment teeth. Can be produced using a wide variety of materials (see dental crown)."
+  },
+  {
+    "name": "Dental crown",
+    "description": "an artificial crown (full ceramic, precious metal alloy, or zirconia) to cover the patient’s teeth for aesthetic or functional indications."
+  },
+  {
+    "name": "Post and core",
+    "description": "a post and core (from metal or fiber) will be produced to fix the artificial crown for teeth with a decomposed crown."
+  },
+  {
+    "name": "Dental in-lays and on-lays",
+    "description": "a micro-prosthesis, also known as a dental laboratory-made indirect filling, which thoroughly restores the anatomy of a single tooth. Can be produced from different materials (ceramics, precious metal alloys, zirconia)."
+  },
+  {
+    "name": "Cast partial denture",
+    "description": "a prosthesis with a metal frame and plastic base with accurate metal clasps as fixation elements."
+  },
+  {
+    "name": "Plastic partial denture",
+    "description": "a partial denture made of plastic."
+  },
+  {
+    "name": "Complete dentures",
+    "description": "Type of prosthesis used to replace the teeth when the full arch of teeth is missing. Can be produced in a variety of plastic materials. (Acrylic resin, Deflex, Evolon). Soft lining can be inserted into the denture base."
+  },
+  {
+    "name": "Combined dentures",
+    "description": "This type of prosthesis consists of a combined fixed and removable prosthesis. Combining these two types of prostheses provides better stability than a removable denture."
+  },
+  {
+    "name": "Dentures fixed with a locking system",
+    "description": "Artificial crowns will be placed onto the patient’s teeth with attached retention elements (locks). Missing teeth will be replaced with a removable denture attached to the locks."
+  },
+  {
+    "name": "Root-supported over-denture",
+    "description": "This denture can be used if the patient maintains few natural teeth but the root canals of the remaining teeth have been properly treated. Special retention elements (root locks) will be attached to the root canals of the patient’s natural teeth and a removable denture will be attached to these locks."
+  },
+  {
+    "name": "Telescope dentures",
+    "description": "A specially shaped metal fixture (primary crown) will be attached to existing teeth. Secondary crowns are attached to the removable part of the denture and retention takes place using frictional force between primary and secondary crowns."
+  },
+  {
+    "name": "Implant-supported dentures",
+    "description": "We use the high-quality ANKYLOS Implant System. Individual dental crowns as well as bridgework can be attached to dental implants. It is possible to reconstruct a full dental arch. Implant abutments can also be used to attach removable dentures."
+  },
+  {
+    "name": "Teeth Whitening",
+    "description": "Teeth whitening can help if you want brighter teeth."
+  },
+  {
+    "name": "Temporary filling",
+    "price": "42"
+  },
+  {
+    "name": "Removal of old filling",
+    "price": "25-28"
+  },
+  {
+    "name": "Glass inonomer filling (depends on the size of the filling)",
+    "price": "58-87"
+  },
+  {
+    "name": "Light-cured composite filling (depends on the size of the filler)",
+    "price": "63-125"
+  },
+  {
+    "name": "Extensive restoration of the dental crown with a composite",
+    "price": "165"
+  },
+  {
+    "name": "Biodentine (filling) one capsule",
+    "price": "48"
+  },
+  {
+    "name": "Treatment of enamel caries with the ICON system for one tooth",
+    "price": "80"
+  },
+  {
+    "name": "Opening and extending one root canal (depending on the severity)",
+    "price": "70-86"
+  },
+  {
+    "name": "Opening and extending each subsequent root canal",
+    "price": "47"
+  },
+  {
+    "name": "Placing or exchanging the drug in the root canals (the price of the filling is added)",
+    "price": "53"
+  },
+  {
+    "name": "Filling of one root canal",
+    "price": "69"
+  },
+  {
+    "name": "Filling of each subsequent root canal",
+    "price": "45"
+  },
+  {
+    "name": "Removal of the old root filling from one root canal (depending on the severity)",
+    "price": "58-65"
+  },
+  {
+    "name": "Follow up checks on root treatment",
+    "price": "35"
+  },
+  {
+    "name": "Removal of a tooth (depending on severity)",
+    "price": "70-165"
+  },
+  {
+    "name": "Complex removal of a wisdom tooth (depending on severity)",
+    "price": "145-195"
+  },
+  {
+    "name": "The opening of an abscess and treatment procedures",
+    "price": "47"
+  },
+  {
+    "name": "Lip and tongue tie excision and correction",
+    "price": "from 100"
+  },
+  {
+    "name": "Surgical release of a tooth",
+    "price": "130-160"
+  },
+  {
+    "name": "Removal of stitches",
+    "price": "25"
+  },
+  {
+    "name": "Facial-maxillary surgery consultation",
+    "price": "90"
+  },
+  {
+    "name": "Complex removal of the wisdom tooth (the cost of anesthesia is added)",
+    "price": "255"
+  },
+  {
+    "name": "Removal of a wisdom tooth with an osteotomy (the cost of anesthesia is added)",
+    "price": "230"
+  },
+  {
+    "name": "Removing the erupted wisdom tooth",
+    "price": "130"
+  },
+  {
+    "name": "Dental implant",
+    "price": "from 800"
+  },
+  {
+    "name": "Dental implant crown",
+    "price": "from 800"
+  },
+  {
+    "name": "Bone transplant (the price is based on the cost of material and the complexity of the procedure)",
+    "price": "200-880"
+  },
+  {
+    "name": "Sinus Lift",
+    "price": "600-900"
+  },
+  {
+    "name": "One unit of metal ceramics crown",
+    "price": "From 410"
+  },
+  {
+    "name": "Zirconium crown",
+    "price": "From 480"
+  },
+  {
+    "name": "E.max crown",
+    "price": "From 420"
+  },
+  {
+    "name": "Pressed ceramics (crown, laminate, or veneer)",
+    "price": "From 345"
+  },
+  {
+    "name": "Composite crown",
+    "price": "185"
+  },
+  {
+    "name": "Telescopic crown (+ gold price)",
+    "price": "254"
+  },
+  {
+    "name": "Denture doctor consultation",
+    "price": "50"
+  },
+  {
+    "name": "Osteopathy",
+    "description": "A treatment method aimed at restoring the functionality of the structure (muscle tone, integrity of connective tissue structures, etc.)"
+  },
+  {
+    "name": "Emergency Dental Care",
+    "description": "Get emergency dental care with our 24/7 services."
+  },
+  {
+    "name": "Diagnistics",
+    "description": "Panorama and 3D X-ray"
+  },
+  {
+    "name": "Fluoride Application"
+  },
+  {
+    "name": "Sealants",
+    "description": "protect teeth from decay by covering their surface with a protective layer"
+  },
+  {
+    "name": "Flossing Techniques"
+  },
+  {
+    "name": "Tooth Brushing"
+  },
+  {
+    "name": "Caries Lesion Treatment",
+    "description": "Treatment of dental caries depends on the extent of the defect and its location on the tooth’s surface."
+  },
+  {
+    "name": "Filling",
+    "description": "Caries-damaged teeth can be esthetically and functionally restored with fillings."
+  },
+  {
+    "name": "ART-atraumatic Restorative Treatment",
+    "description": "Caries lesions on small children (up to 3 years of age) can be removed exclusively with hand instruments."
+  },
+  {
+    "name": "Temporary Fillings"
+  },
+  {
+    "name": "Dual Session Treatment"
+  },
+  {
+    "name": "Remotherapy",
+    "description": "helps strengthen tooth enamel and make it more resistant to decay"
+  },
+  {
+    "name": "Dental Laminates",
+    "description": "suitable for protecting teeth and hiding defects in more severe cases"
+  },
+  {
+    "name": "Dental Air-Flow soda wash and pearl cleaning",
+    "description": "These procedures are performed in a dental clinic. During soda wash, granulated soda, air, and water pressure act on the teeth, which cleans the teeth of pigment. Hard-to-reach places, such as tight spaces between teeth, can also be cleaned during a soda wash. Tartar must be removed before cleaning, it is not removed during soda wash. During this procedure, your teeth will become cleaner and brighter."
+  },
+  {
+    "name": "ZOOM-whitening at the dental clinic",
+    "description": "In this whitening procedure, the teeth are first cleaned with a cleaning paste. The gums are then covered with a gum protection gel to prevent the whitening gel from flowing from the tooth surface onto the gums. Once the mucous membrane is protected, a whitening gel is applied to the teeth, which is activated by light rays from a special ZOOM lamp. The procedure lasts 15 minutes and can be repeated up to 4 times. At the end of the procedure, the gel and gum protection are removed. The entire procedure takes 1.5-2 hours."
+  },
+  {
+    "name": "Sapphire dental whitening",
+    "description": "The Denmat Sapphire Whitening or Lumismile teeth whitening system is effective, fast and safe. The Lumismile whitening system helps to achieve a smile up to 8 shades whiter with minimal time and minimal tooth sensitivity"
+  },
+  {
+    "name": "LED teeth whitening BlancOne",
+    "description": "Blanc-One is a relatively new whitening system that uses LED lighting with a specially formulated whitening gel. BlancOne Click and Touch whitening gels contain only 5.6% hydrogen peroxide, the use of which in teeth whitening has also been approved by the Estonian Health Board."
+  },
+  {
+    "name": "Teeth whitening with trays at home",
+    "description": "To do this, impressions are taken of the patient’s teeth, based on which trays are made in the dental laboratory. The tray is an individual mold made of soft plastic, into which whitening gel is applied and which is then placed on the teeth. The gel tray is applied at night (the gel is active for 8-10 hours)."
+  },
+  {
+    "name": "Whitening of a single tooth",
+    "description": "If a single tooth in a row has changed color, the above whitening methods will not work on it. In this case, a small hole is drilled on the palate or tongue side surface of the tooth, the old filling is removed, and a special whitening gel is placed in the tooth. The hole created in the tooth is temporarily closed with a filling, and the procedure is repeated every 3-5 days until the desired result is achieved."
+  },
+  {
+    "name": "Root Canal Treatment with Microscope",
+    "description": "Root canal treatment under a microscope is the most modern way to perform root canal treatment."
+  },
+  {
+    "name": "Healthy Smile",
+    "description": "Get a healthy and beautiful smile with our dental services."
+  },
+  {
+    "name": "Dental Cleaning",
+    "description": "Regular dental cleaning to maintain good oral health."
+  },
+  {
+    "name": "Tooth Whitening",
+    "description": "Get a brighter and whiter smile with our tooth whitening services."
+  },
+  {
+    "name": "Orthodontic Treatment",
+    "description": "Straighten your teeth with our orthodontic treatment."
+  },
+  {
+    "name": "Dental Implants",
+    "description": "Replace missing teeth with our dental implants."
+  },
+  {
+    "name": "Gum Disease Treatment",
+    "description": "Treat gum disease with our professional services."
+  },
+  {
+    "name": "Dental Fillings",
+    "description": "Repair cavities with our dental fillings."
+  },
+  {
+    "name": "Dental Crowns",
+    "description": "Restore damaged teeth with our dental crowns."
+  },
+  {
+    "name": "Dental Bridges",
+    "description": "Replace missing teeth with our dental bridges."
+  },
+  {
+    "name": "Dental Veneers",
+    "description": "Improve the appearance of your teeth with our dental veneers."
+  },
+  {
+    "name": "Dental Implant Surgery",
+    "description": "Replace missing teeth with our dental implant surgery."
+  },
+  {
+    "name": "Gum Grafting",
+    "description": "Treat gum recession with our gum grafting services."
+  },
+  {
+    "name": "Bone Grafting",
+    "description": "Treat bone loss with our bone grafting services."
+  },
+  {
+    "name": "Dental Sedation",
+    "description": "Relax during dental procedures with our dental sedation services."
+  }
+]

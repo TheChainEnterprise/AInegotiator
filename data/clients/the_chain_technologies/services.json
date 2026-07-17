@@ -9,10 +9,76 @@
     "category": "AI Receptionist"
   },
   {
-    "id": 1784188066913,
-    "name": "",
-    "description": "",
-    "price": 0,
-    "monthly": 0
+    "name": "Installation",
+    "price": "€500"
+  },
+  {
+    "name": "Business AI Configuration"
+  },
+  {
+    "name": "Val Installation"
+  },
+  {
+    "name": "Phone Integration"
+  },
+  {
+    "name": "CRM Integration"
+  },
+  {
+    "name": "Calendar Integration"
+  },
+  {
+    "name": "Knowledge Setup"
+  },
+  {
+    "name": "Go Live"
+  },
+  {
+    "name": "Hosting",
+    "monthly": "€50"
+  },
+  {
+    "name": "Monitoring"
+  },
+  {
+    "name": "Updates"
+  },
+  {
+    "name": "AI Improvements"
+  },
+  {
+    "name": "Business Knowledge Updates"
+  },
+  {
+    "name": "Priority Support"
+  },
+  {
+    "name": "Success Fee",
+    "description": "Only from additional negotiated profit",
+    "price": "10%"
+  },
+  {
+    "name": "Customer Budget",
+    "price": "€1000"
+  },
+  {
+    "name": "Your Minimum Price",
+    "price": "€900"
+  },
+  {
+    "name": "Val Negotiates",
+    "price": "€940"
+  },
+  {
+    "name": "Extra Profit",
+    "price": "€40"
+  },
+  {
+    "name": "You Keep",
+    "price": "€36"
+  },
+  {
+    "name": "The Chain",
+    "price": "€4"
   }
 ]

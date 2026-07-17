@@ -34,5 +34,21 @@
   {
     "title": "Booking a Demo",
     "content": "Visitors can request a demonstration of Val to experience AI conversations, negotiation capabilities, business knowledge and appointment booking."
+  },
+  {
+    "title": "Acceptance of Terms",
+    "content": "By using The Chain Technologies website or services, you agree to these Terms of Service and all applicable laws."
+  },
+  {
+    "title": "Customer Responsibilities",
+    "content": "Customers are responsible for providing accurate information, complying with applicable laws, and using our services in a lawful manner."
+  },
+  {
+    "title": "Limitation of Liability",
+    "content": "The Chain Technologies shall not be liable for indirect or consequential damages arising from the use of our services."
+  },
+  {
+    "title": "Changes to Terms of Service",
+    "content": "We may update these Terms of Service as our products evolve. Continued use of our services constitutes acceptance of the updated terms."
   }
 ]

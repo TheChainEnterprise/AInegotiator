@@ -15,6 +15,14 @@ const {
     retrieveRelevantKnowledge,
 } = require("./engine/retrieval");
 
+const {
+    crawlWebsite,
+} = require("./engine/crawler");
+
+const {
+    processWebsiteContent,
+} = require("./engine/importProcessor");
+
 // Use the environment variable if available, otherwise use the fallback for local testing
 const finalApiKey = process.env.GROQ_API_KEY || "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";
 const groq = new Groq({ apiKey: finalApiKey });
@@ -118,8 +126,7 @@ const sendAlert = (tenantId, message) => {
     const businessWebhook =
         webhooks[tenantId];
 
-    const adminWebhook =
-        "https://api.telegram.org/bot8622041497:AAGZMF-09cHyxvbtIwI_5htvnUu07M7gamg/sendMessage?chat_id=1303255356&text=";
+const adminWebhook = process.env.TELEGRAM_ALERT_WEBHOOK;
 
     const destinations = [
         businessWebhook,
@@ -760,7 +767,19 @@ app.post("/api/admin/clients", (req, res) => {
         });
     }
 
-const tenantDir = getTenantDir(id);
+const clientsRoot = path.join(
+    __dirname,
+    "data",
+    "clients"
+);
+
+const tenantDir = path.join(clientsRoot, id);
+
+console.log("================================");
+console.log("Creating client:", id);
+console.log("Tenant directory:", tenantDir);
+console.log("Exists:", fs.existsSync(tenantDir));
+console.log("================================");
 
 if (fs.existsSync(tenantDir)) {
     return res.status(409).json({
@@ -1113,22 +1132,292 @@ app.get("/api/admin/import", (req, res) => {
 
 });
 
-app.post("/api/admin/import", (req, res) => {
+app.post("/api/admin/import", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const data = {
-        website: req.body.website,
-        status: "Imported",
-        createdAt: new Date().toISOString()
-    };
+    try {
 
-    fs.writeFileSync(
-        path.join(getTenantDir(tenantId), "import.json"),
-        JSON.stringify(data, null, 2)
+        const website = req.body.website;
+
+        if (!website) {
+            return res.status(400).json({
+                error: "Website URL is required."
+            });
+        }
+
+        console.log(`Starting import for ${tenantId}: ${website}`);
+
+const pages = await crawlWebsite(website);
+
+const imported = await processWebsiteContent(
+    pages
+);
+
+// Validate import before touching any client files
+
+if (
+    !imported ||
+    typeof imported !== "object" ||
+    !imported.business ||
+    !Array.isArray(imported.services) ||
+    !Array.isArray(imported.faq) ||
+    !Array.isArray(imported.knowledge)
+) {
+    throw new Error("Importer returned invalid data.");
+}
+
+const tenantDir = getTenantDir(tenantId);
+
+// ---------- BUSINESS ----------
+
+const businessPath = path.join(tenantDir, "business.json");
+
+const existingBusiness =
+    fs.existsSync(businessPath)
+        ? JSON.parse(fs.readFileSync(businessPath, "utf8"))
+        : {};
+
+const mergedBusiness = {
+    ...existingBusiness
+};
+
+for (const [key, value] of Object.entries(imported.business)) {
+
+    if (
+        value &&
+        String(value).trim() !== ""
+    ) {
+        mergedBusiness[key] = value;
+    }
+
+}
+
+fs.writeFileSync(
+    businessPath,
+    JSON.stringify(mergedBusiness, null, 2)
+);
+
+// ---------- SERVICES ----------
+
+const servicesPath = path.join(
+    tenantDir,
+    "services.json"
+);
+
+const existingServices =
+    fs.existsSync(servicesPath)
+        ? JSON.parse(fs.readFileSync(servicesPath, "utf8"))
+        : [];
+
+const serviceMap = new Map();
+
+// Load existing services first
+for (const service of existingServices) {
+
+    if (!service?.name) continue;
+
+    serviceMap.set(
+        service.name.trim().toLowerCase(),
+        { ...service }
     );
 
-    res.json({ success: true });
+}
+
+// Merge imported services
+for (const service of imported.services) {
+
+    if (!service?.name) continue;
+
+    const key = service.name.trim().toLowerCase();
+
+    const existing = serviceMap.get(key) || {};
+
+    serviceMap.set(key, {
+
+        ...existing,
+
+        name: service.name || existing.name,
+
+        description:
+            service.description?.trim()
+                ? service.description
+                : existing.description,
+
+        price:
+            service.price?.toString().trim()
+                ? service.price
+                : existing.price,
+
+        monthly:
+            service.monthly?.toString().trim()
+                ? service.monthly
+                : existing.monthly
+
+    });
+
+}
+
+const mergedServices = [...serviceMap.values()];
+
+fs.writeFileSync(
+    servicesPath,
+    JSON.stringify(mergedServices, null, 2)
+);
+
+// ---------- FAQ ----------
+
+const faqPath = path.join(
+    tenantDir,
+    "faq.json"
+);
+
+const existingFaq =
+    fs.existsSync(faqPath)
+        ? JSON.parse(fs.readFileSync(faqPath, "utf8"))
+        : [];
+
+const faqMap = new Map();
+
+// Existing FAQ
+for (const item of existingFaq) {
+
+    if (!item?.question) continue;
+
+    faqMap.set(
+        item.question.trim().toLowerCase(),
+        { ...item }
+    );
+
+}
+
+// Imported FAQ
+for (const item of imported.faq) {
+
+    if (!item?.question) continue;
+
+    const key = item.question.trim().toLowerCase();
+
+    const existing = faqMap.get(key) || {};
+
+    faqMap.set(key, {
+
+        ...existing,
+
+        question:
+            item.question || existing.question,
+
+        answer:
+            item.answer?.trim()
+                ? item.answer
+                : existing.answer
+
+    });
+
+}
+
+const mergedFaq = [...faqMap.values()];
+
+fs.writeFileSync(
+    faqPath,
+    JSON.stringify(mergedFaq, null, 2)
+);
+
+// ---------- KNOWLEDGE ----------
+
+const knowledgePath = path.join(
+    tenantDir,
+    "knowledge.json"
+);
+
+const existingKnowledge =
+    fs.existsSync(knowledgePath)
+        ? JSON.parse(fs.readFileSync(knowledgePath, "utf8"))
+        : [];
+
+const knowledgeMap = new Map();
+
+// Existing Knowledge
+for (const article of existingKnowledge) {
+
+    if (!article?.title) continue;
+
+    knowledgeMap.set(
+        article.title.trim().toLowerCase(),
+        { ...article }
+    );
+
+}
+
+// Imported Knowledge
+for (const article of imported.knowledge) {
+
+    if (!article?.title) continue;
+
+if (typeof article.content !== "string") {
+    article.content = JSON.stringify(article.content ?? "");
+}
+
+if (typeof article.source !== "string") {
+    article.source = "";
+}
+
+    const key = article.title.trim().toLowerCase();
+
+    const existing = knowledgeMap.get(key) || {};
+
+    knowledgeMap.set(key, {
+
+        ...existing,
+
+        title:
+            article.title || existing.title,
+
+content:
+    typeof article.content === "string" &&
+    article.content.trim()
+        ? article.content
+        : existing.content,
+
+source:
+    typeof article.source === "string" &&
+    article.source.trim()
+        ? article.source
+        : existing.source
+
+    });
+
+}
+
+const mergedKnowledge = [...knowledgeMap.values()];
+
+fs.writeFileSync(
+    knowledgePath,
+    JSON.stringify(mergedKnowledge, null, 2)
+);
+
+        fs.writeFileSync(
+            path.join(getTenantDir(tenantId), "import.json"),
+            JSON.stringify({
+                website,
+                status: "Imported",
+                createdAt: new Date().toISOString()
+            }, null, 2)
+        );
+
+        res.json({
+            success: true
+        });
+
+    } catch (err) {
+
+        console.error(err);
+
+        res.status(500).json({
+            error: "Website import failed."
+        });
+
+    }
 
 });
 
@@ -1156,7 +1445,7 @@ app.get("/api/admin/calendar/connect", (req, res) => {
 
     res.json({
         success: false,
-        url: `http://localhost:3001/api/admin/calendar/oauth?tenant=${tenantId}`
+        url: `${process.env.AI_ENGINE_URL || "http://localhost:3001"}/api/admin/calendar/oauth?tenant=${tenantId}`
     });
 
 });
