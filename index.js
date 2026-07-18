@@ -2063,5 +2063,5 @@ const clientsRoot = path.dirname(getTenantDir("default"));
 });
 
 app.listen(PORT, () => {
-    console.log(`🚀 ENTERPRISE ENGINE v4.1.3 LIVE`);
+    console.log("🚀 BUILD CHECK 2026-07-18 16:45");
 });
