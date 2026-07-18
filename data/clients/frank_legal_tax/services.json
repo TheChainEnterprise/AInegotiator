@@ -1,0 +1,580 @@
+[
+  {
+    "name": "Thai Limited Company",
+    "description": "The Thai Limited Company is the most popular and versatile business structure in Thailand, commonly chosen by both local and foreign entrepreneurs."
+  },
+  {
+    "name": "Representative Office",
+    "description": "A Representative Office is ideal for foreign companies looking to establish a non-trading office in Thailand to oversee business activities such as marketing, research, and quality control."
+  },
+  {
+    "name": "Branch Office",
+    "description": "A Branch Office allows foreign companies to conduct business operations in Thailand, directly engaging in commercial activities under the name of the parent company."
+  },
+  {
+    "name": "BOI-Promoted Company",
+    "description": "A BOI-Promoted Company benefits from the incentives provided by the Board of Investment (BOI) in Thailand, making it an attractive option for businesses in certain industries."
+  },
+  {
+    "name": "BOI Application Preparation"
+  },
+  {
+    "name": "Tax Incentive Optimization"
+  },
+  {
+    "name": "Compliance and Regulatory Support"
+  },
+  {
+    "name": "Post-Approval Compliance"
+  },
+  {
+    "name": "Permission to Hire Foreign Experts"
+  },
+  {
+    "name": "Remittance Flexibility"
+  },
+  {
+    "name": "Tax Reductions on Dividends"
+  },
+  {
+    "name": "Manufacturing and Production of High-Tech Products"
+  },
+  {
+    "name": "Research and Development of New Technologies"
+  },
+  {
+    "name": "Software Development and IT Services"
+  },
+  {
+    "name": "Biotechnology and Pharmaceuticals"
+  },
+  {
+    "name": "Transport Equipment and Electronic Industry"
+  },
+  {
+    "name": "Tourism and Hospitality"
+  },
+  {
+    "name": "Agriculture and Food Processing"
+  },
+  {
+    "name": "Minimum Registered Capital"
+  },
+  {
+    "name": "First Three Years"
+  },
+  {
+    "name": "First Five Years"
+  },
+  {
+    "name": "Compliance with Regulations"
+  },
+  {
+    "name": "Preparing and Submitting the Application"
+  },
+  {
+    "name": "Project Presentation"
+  },
+  {
+    "name": "Committee Review"
+  },
+  {
+    "name": "Approval Outcome"
+  },
+  {
+    "name": "Ongoing Compliance"
+  },
+  {
+    "name": "Regulatory Compliance"
+  },
+  {
+    "name": "Tax Laws"
+  },
+  {
+    "name": "Labor Laws"
+  },
+  {
+    "name": "Environmental Laws"
+  },
+  {
+    "name": "Regular Reporting"
+  },
+  {
+    "name": "Transaction Planning and Structuring"
+  },
+  {
+    "name": "Company Valuation and Due Diligence"
+  },
+  {
+    "name": "Data Room Organization and Management"
+  },
+  {
+    "name": "Bid Evaluation and Purchase Agreement Negotiation"
+  },
+  {
+    "name": "Post-Merger Employment Law Support"
+  },
+  {
+    "name": "Planning, Preparation, and Structuring of Transactions"
+  },
+  {
+    "name": "Support in Determining and Verifying Company Value"
+  },
+  {
+    "name": "Organization of Data Rooms"
+  },
+  {
+    "name": "Preparation and Execution of Due Diligence Reviews"
+  },
+  {
+    "name": "Transaction Management, Including Preparation of Signing and Closing"
+  },
+  {
+    "name": "Support in Bid Evaluation and Structuring of a Bidding Process"
+  },
+  {
+    "name": "Drafting and Negotiation of Company Purchase Agreements"
+  },
+  {
+    "name": "Employment Law Support During Post-Merger Integration"
+  },
+  {
+    "name": "Initial Consultation and Assessment"
+  },
+  {
+    "name": "Site Selection and Zoning Approval"
+  },
+  {
+    "name": "Environmental Impact Assessment (EIA)"
+  },
+  {
+    "name": "Prepare and Submit Application"
+  },
+  {
+    "name": "Factory Inspection"
+  },
+  {
+    "name": "License Issuance"
+  },
+  {
+    "name": "Company Registration Documents"
+  },
+  {
+    "name": "Land Ownership or Lease Agreement"
+  },
+  {
+    "name": "Environmental Impact Assessment Report"
+  },
+  {
+    "name": "Factory Layout and Machinery Plans"
+  },
+  {
+    "name": "Fire Safety and Evacuation Plans"
+  },
+  {
+    "name": "Review of Current Operations"
+  },
+  {
+    "name": "Submission of Renewal Application"
+  },
+  {
+    "name": "Inspection and Approval"
+  },
+  {
+    "name": "Safety Measures"
+  },
+  {
+    "name": "Training"
+  },
+  {
+    "name": "Environmental Safeguards"
+  },
+  {
+    "name": "Compliance Monitoring"
+  },
+  {
+    "name": "Business Contracts"
+  },
+  {
+    "name": "Shareholder Agreements"
+  },
+  {
+    "name": "Share Purchase Agreements"
+  },
+  {
+    "name": "Joint Venture Agreements"
+  },
+  {
+    "name": "Non-Disclosure Agreements (NDA’s)"
+  },
+  {
+    "name": "Commercial Contracts"
+  },
+  {
+    "name": "Sales and Purchase Agreements"
+  },
+  {
+    "name": "Distribution Agreements"
+  },
+  {
+    "name": "Licensing Agreements"
+  },
+  {
+    "name": "Service Agreements"
+  },
+  {
+    "name": "Real Estate Contracts"
+  },
+  {
+    "name": "Purchase & Sale Agreements"
+  },
+  {
+    "name": "Lease Agreements"
+  },
+  {
+    "name": "Property Management Contracts"
+  },
+  {
+    "name": "Construction Contracts"
+  },
+  {
+    "name": "Property Contracts"
+  },
+  {
+    "name": "Property Development Agreements"
+  },
+  {
+    "name": "Easements and Right-of-Way Agreements"
+  },
+  {
+    "name": "Usufruct Agreements"
+  },
+  {
+    "name": "Land Contracts"
+  },
+  {
+    "name": "Land Purchase Agreements"
+  },
+  {
+    "name": "Land Lease Agreements"
+  },
+  {
+    "name": "Employment Contracts"
+  },
+  {
+    "name": "Employment Agreements"
+  },
+  {
+    "name": "Non-Compete Agreements"
+  },
+  {
+    "name": "Severance Agreements"
+  },
+  {
+    "name": "Contract Dispute Resolution and Breach of Contracts"
+  },
+  {
+    "name": "Contract Interpretation Disputes"
+  },
+  {
+    "name": "Performance Disputes"
+  },
+  {
+    "name": "Payment Disputes"
+  },
+  {
+    "name": "Advising stakeholders"
+  },
+  {
+    "name": "Restructuring companies"
+  },
+  {
+    "name": "Insolvency applications"
+  },
+  {
+    "name": "Insolvency plans"
+  },
+  {
+    "name": "Creditor negotiations"
+  },
+  {
+    "name": "Comprehensive company assessments"
+  },
+  {
+    "name": "Strategic options for stakeholders"
+  },
+  {
+    "name": "Debt restructuring and negotiation"
+  },
+  {
+    "name": "Representation in insolvency proceedings"
+  },
+  {
+    "name": "Crisis management and recovery planning"
+  },
+  {
+    "name": "Customized restructuring plans"
+  },
+  {
+    "name": "Debt reorganization"
+  },
+  {
+    "name": "Operational restructuring"
+  },
+  {
+    "name": "Stakeholder communication"
+  },
+  {
+    "name": "Legal and regulatory compliance"
+  },
+  {
+    "name": "Document preparation and filing"
+  },
+  {
+    "name": "Legal guidance and representation"
+  },
+  {
+    "name": "Compliance with legal duties"
+  },
+  {
+    "name": "Communication with creditors"
+  },
+  {
+    "name": "Strategic planning for future steps"
+  },
+  {
+    "name": "Clarification of legal responsibilities"
+  },
+  {
+    "name": "Risk management and liability Mitigation"
+  },
+  {
+    "name": "Compliance with corporate governance"
+  },
+  {
+    "name": "Defense in liability disputes"
+  },
+  {
+    "name": "Advisory on indemnification and insurance"
+  },
+  {
+    "name": "Insolvency plan development"
+  },
+  {
+    "name": "Legal review of existing plans"
+  },
+  {
+    "name": "Creditor communication and negotiation"
+  },
+  {
+    "name": "Compliance assurance"
+  },
+  {
+    "name": "Strategic advice for implementation"
+  },
+  {
+    "name": "Expert representation"
+  },
+  {
+    "name": "Strategic negotiation planning"
+  },
+  {
+    "name": "Debt restructuring proposals"
+  },
+  {
+    "name": "Conflict resolution"
+  },
+  {
+    "name": "Ongoing communication"
+  },
+  {
+    "name": "Financial reporting"
+  },
+  {
+    "name": "Management reports"
+  },
+  {
+    "name": "Budgeting and forecasting"
+  },
+  {
+    "name": "Tax Planning and Compliance"
+  },
+  {
+    "name": "Payroll management"
+  },
+  {
+    "name": "Bookkeeping and Tax Filing"
+  },
+  {
+    "name": "Reporting and Analysis"
+  },
+  {
+    "name": "Decision Making Support"
+  },
+  {
+    "name": "Online Accounting Services"
+  },
+  {
+    "name": "Accurate Financial Reporting"
+  },
+  {
+    "name": "Insightful Management Reports"
+  },
+  {
+    "name": "Precise Budgeting and Forecasting"
+  },
+  {
+    "name": "Corporate Income Tax"
+  },
+  {
+    "name": "Personal Income Tax"
+  },
+  {
+    "name": "Withholding Taxes"
+  },
+  {
+    "name": "Value Added Tax (VAT)"
+  },
+  {
+    "name": "Real Estate Due Diligence"
+  },
+  {
+    "name": "Property Contracts and Negotiations"
+  },
+  {
+    "name": "Support Regarding International Payments"
+  },
+  {
+    "name": "Conveyancing, Registrations at the Competent Land Office"
+  },
+  {
+    "name": "Real Estate Taxation Advice"
+  },
+  {
+    "name": "Representation in Court Proceedings"
+  },
+  {
+    "name": "Commercial Real Estate Transactions"
+  },
+  {
+    "name": "Land Register & Land Register Inspection"
+  },
+  {
+    "name": "Real Estate in Marriage and Divorce"
+  },
+  {
+    "name": "Real Estate Related Corporate Law"
+  },
+  {
+    "name": "Inheritance of Real Estate"
+  },
+  {
+    "name": "Commercial Tenancy Law & Lease Law"
+  },
+  {
+    "name": "Brokerage Law"
+  },
+  {
+    "name": "Contractual Disputes"
+  },
+  {
+    "name": "Debt and Fraud Concerns"
+  },
+  {
+    "name": "Property Contests"
+  },
+  {
+    "name": "Employment Disputes"
+  },
+  {
+    "name": "Mediation"
+  },
+  {
+    "name": "Arbitration"
+  },
+  {
+    "name": "Contract Law Lawyers"
+  },
+  {
+    "name": "Property Dispute Lawyers"
+  },
+  {
+    "name": "Labour Lawyer Bangkok"
+  },
+  {
+    "name": "Company Registration",
+    "description": "Register your company in Thailand with our expert services."
+  },
+  {
+    "name": "BOI Application",
+    "description": "Apply for a BOI (Board of Investment) license with our assistance."
+  },
+  {
+    "name": "Foreign Business License (FBL)",
+    "description": "Obtain a Foreign Business License (FBL) for your business in Thailand."
+  },
+  {
+    "name": "Corporate Transactions",
+    "description": "Expert advice on corporate transactions, including mergers and acquisitions."
+  },
+  {
+    "name": "Factory Licenses",
+    "description": "Obtain a factory license for your business in Thailand."
+  },
+  {
+    "name": "Business Operations Support",
+    "description": "Support for business operations, including contract services and business closure."
+  },
+  {
+    "name": "Contract Services",
+    "description": "Expert contract services for businesses in Thailand."
+  },
+  {
+    "name": "Business Closure & Insolvency",
+    "description": "Expert advice on business closure and insolvency in Thailand."
+  },
+  {
+    "name": "Tax Advisory",
+    "description": "Expert tax advisory services for businesses in Thailand."
+  },
+  {
+    "name": "Accounting Services",
+    "description": "Expert accounting services for businesses in Thailand."
+  },
+  {
+    "name": "Investment in Real Estate",
+    "description": "Expert advice on investment in real estate in Thailand."
+  },
+  {
+    "name": "Commercial Litigation",
+    "description": "Expert commercial litigation services for businesses in Thailand."
+  },
+  {
+    "name": "Property Disputes",
+    "description": "Expert property dispute resolution services for businesses in Thailand."
+  },
+  {
+    "name": "Family Law",
+    "description": "Expert family law services for individuals in Thailand."
+  },
+  {
+    "name": "Employment & Dismissal",
+    "description": "Expert employment and dismissal services for businesses in Thailand."
+  },
+  {
+    "name": "Notarial Services",
+    "description": "Expert notarial services for individuals and businesses in Thailand."
+  },
+  {
+    "name": "Last Wills & Administration of Estate",
+    "description": "Expert last wills and administration of estate services for individuals in Thailand."
+  },
+  {
+    "name": "Business Visa & Work Permit",
+    "description": "Expert business visa and work permit services for individuals in Thailand."
+  },
+  {
+    "name": "LTR Visa (Long Term Resident)",
+    "description": "Expert LTR visa services for individuals in Thailand."
+  }
+]

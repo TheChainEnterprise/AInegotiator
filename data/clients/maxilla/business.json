@@ -1,14 +1,13 @@
 {
-  "businessName": "Maxilla",
+  "businessName": "Maxilla Dental Clinic",
   "industry": "Dental Care",
   "website": "https://www.maxilla.ee",
   "email": "",
   "phone": "",
-  "description": "Maxilla is a dental clinic providing various services for healthy and beautiful smiles.",
+  "description": "Estonia's first private dental clinic, providing high-quality and comfortable dental care services.",
   "address": "",
   "whatsapp": "",
   "bookingUrl": "",
   "tone": "Professional",
-  "openingHours": {},
-  "name": "Maxilla"
+  "openingHours": {}
 }

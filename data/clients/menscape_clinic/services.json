@@ -1,0 +1,155 @@
+[
+  {
+    "name": "Penile Enhancement",
+    "description": "A range of non-surgical and surgical treatments to enhance penile size and appearance."
+  },
+  {
+    "name": "Erectile Dysfunction Treatment",
+    "description": "Medical care for erectile dysfunction, including non-invasive and surgical solutions."
+  },
+  {
+    "name": "Hormonal Optimization",
+    "description": "Treatment to optimize hormone levels for overall health and well-being."
+  },
+  {
+    "name": "Surgical Procedures",
+    "description": "A range of surgical procedures for men's health and aesthetic concerns."
+  },
+  {
+    "name": "Hair Restoration",
+    "description": "Non-surgical and surgical treatments for hair loss and restoration."
+  },
+  {
+    "name": "Skin Rejuvenation",
+    "description": "A range of treatments for skin rejuvenation and anti-aging."
+  },
+  {
+    "name": "Fat-dissolving injections",
+    "description": "Fat-dissolving injections use a solution, most commonly based on deoxycholic acid (a bile-acid molecule the body already makes), delivered as a grid of tiny injections into the fat under the chin."
+  },
+  {
+    "name": "Fat freezing (cryolipolysis / CoolSculpting)",
+    "description": "Cryolipolysis uses a cupped applicator to draw the submental fat into controlled cooling."
+  },
+  {
+    "name": "Submental liposuction",
+    "description": "Liposuction remains the most direct way to remove a defined volume of submental fat in a single procedure."
+  },
+  {
+    "name": "Liposuction with skin tightening",
+    "description": "Liposuction can be combined with a skin-tightening step (for example radiofrequency-assisted devices) in the same sitting."
+  },
+  {
+    "name": "Online video consultation (30 min with a men's health doctor)",
+    "price": 1500
+  },
+  {
+    "name": "In-clinic ED evaluation (if needed later)",
+    "price": 500
+  },
+  {
+    "name": "Licensed generic sildenafil (per tablet)",
+    "price": 30
+  },
+  {
+    "name": "Licensed generic tadalafil (per tablet)",
+    "price": 60
+  },
+  {
+    "name": "Daily low-dose tadalafil (per tablet)",
+    "price": 30
+  },
+  {
+    "name": "Hormone / testosterone blood panel",
+    "price": 800
+  },
+  {
+    "name": "Shockwave therapy course, 5-7 sessions (in-clinic only)",
+    "price": 18000
+  },
+  {
+    "name": "PRP / regenerative session (in-clinic only)",
+    "price": 15000
+  },
+  {
+    "name": "HPV Testing and Treatment",
+    "description": "Menscape Clinic offers HPV testing and treatment services, including wart removal and anal screening.",
+    "price": "THB 500-12,000"
+  },
+  {
+    "name": "Full Men's STI Screen",
+    "description": "A multi-infection panel that checks for various STIs, not including HPV.",
+    "price": "THB 2,500-7,500"
+  },
+  {
+    "name": "Men's Health Check-up",
+    "description": "A structured check-up that includes a genital exam and discussion of HPV-related concerns."
+  },
+  {
+    "name": "Consultation and diagnosis",
+    "price": "500-1,500"
+  },
+  {
+    "name": "Prescription topical: podophyllotoxin course",
+    "price": "800-2,000"
+  },
+  {
+    "name": "Self-applied at home: Prescription topical: imiquimod 5% (course of sachets)",
+    "price": "3,000-5,000"
+  },
+  {
+    "name": "Clinic removal, single wart (laser or electrosurgery)",
+    "price": "from 9,900"
+  },
+  {
+    "name": "Clinic removal, 2-4 warts",
+    "price": "from 11,900"
+  },
+  {
+    "name": "Clinic removal, extensive (10+ warts)",
+    "price": "from 35,000"
+  },
+  {
+    "name": "Internal or urethral warts (day surgery)",
+    "price": "from 81,500"
+  },
+  {
+    "name": "HPV vaccine (9-valent), full 3-dose course",
+    "price": "~21,000"
+  },
+  {
+    "name": "HPV Vaccination",
+    "description": "A preventive medical service that protects against human papillomavirus (HPV) and its associated cancers and genital warts.",
+    "price": "5,500 - 9,500 THB per dose"
+  },
+  {
+    "name": "Prescription topical (podophyllotoxin or imiquimod), home course",
+    "description": "Home creams are the cheapest but slowest. Podophyllotoxin and imiquimod are not products to source informally, both because dosing and application technique matter and because the wrong diagnosis wastes weeks.",
+    "price": 40
+  },
+  {
+    "name": "Cryotherapy (freezing), per session",
+    "description": "A good all-rounder for small to moderate external warts. It is quick, needs no injection for small lesions, and is safe in situations where creams are not ideal.",
+    "price": 40
+  },
+  {
+    "name": "Electrocautery / electrosurgery (burning with an electric current)",
+    "description": "Strong for larger, thicker or clustered warts, and it often clears external disease in a single visit under local anaesthetic.",
+    "price": 275
+  },
+  {
+    "name": "CO2 laser removal (external)",
+    "description": "Useful for precise removal of numerous, awkwardly placed or recurrent warts, and often the preferred tool for delicate or hard-to-reach areas.",
+    "price": 275
+  },
+  {
+    "name": "Internal / urethral warts (hospital, anaesthesia)",
+    "description": "Reserved for extensive disease, warts inside the urethra, or complex anal cases.",
+    "price": 2265
+  },
+  {
+    "name": "HPV vaccine (Gardasil 9), per dose / full course",
+    "description": "The right choice depends on how many warts you have, where they sit, whether you can reliably apply a cream, and how fast you want them gone.",
+    "price": 210
+  }
+]

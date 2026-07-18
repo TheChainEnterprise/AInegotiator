@@ -251,15 +251,91 @@ ${instructions}
 /**
  * Extract structured data from one page.
  */
+
+function prepareContent(content) {
+
+    return content
+
+        // Remove markdown images
+        .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+
+        // Remove empty markdown links
+        .replace(/\[\]\([^)]+\)/g, "")
+
+        // Navigation / CTA
+        .replace(/\[Skip to content\][^\n]*/gi, "")
+        .replace(/\[Message Us\][^\n]*/gi, "")
+        .replace(/\[Schedule a Consultation\][^\n]*/gi, "")
+        .replace(/\[Learn More About Us\][^\n]*/gi, "")
+        .replace(/\[View profile\][^\n]*/gi, "")
+        .replace(/\[Compare[^\]]*\][^\n]*/gi, "")
+
+        // Review badge
+        .replace(/2,300\+\s*5[- ]star reviews/gi, "")
+        .replace(/2,300\+\s*5-Star Reviews/gi, "")
+
+        // Before / After galleries
+        .replace(/\bBefore\b/gi, "")
+        .replace(/\bAfter\b/gi, "")
+
+        // Remove standalone bullets left by markdown
+        .replace(/^\s*\*\s*$/gm, "")
+
+        // Collapse excessive blank lines
+        .replace(/\n{3,}/g, "\n\n")
+
+        .trim();
+
+}
+
+function compressContent(content) {
+
+    const sections = [];
+
+    const patterns = [
+
+        /Starting Price[\s\S]{0,500}/gi,
+        /Treatment Time[\s\S]{0,250}/gi,
+        /Downtime[\s\S]{0,250}/gi,
+        /Results Duration[\s\S]{0,250}/gi,
+
+        /What [^\n]+\n[-=]+\n[\s\S]{0,2000}/gi,
+
+        /Benefits[\s\S]{0,1500}/gi,
+        /Who Is a Good Candidate[\s\S]{0,1500}/gi,
+        /Treatment Options[\s\S]{0,2000}/gi,
+        /Pricing[\s\S]{0,2000}/gi
+
+    ];
+
+    for (const pattern of patterns) {
+
+        const matches = content.match(pattern);
+
+        if (matches)
+            sections.push(...matches);
+
+    }
+
+    if (sections.length === 0)
+        return content.substring(0, 8000);
+
+    return sections.join("\n\n");
+
+}
+
 async function extractFromPage(page) {
 
     const pageType = determinePageType(page.url);
+    const cleanedContent = compressContent(
+    prepareContent(page.content)
+);
 
     try {
 
         const completion = await groq.chat.completions.create({
 
-            model: "llama-3.1-8b-instant",
+            model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
 
             temperature: 0.1,
 
@@ -282,7 +358,7 @@ ${page.url}
 
 CONTENT:
 
-${page.content.substring(0, 12000)}`
+${cleanedContent.substring(0, 12000)}`
                 }
 
             ]

@@ -39,6 +39,33 @@ function cleanHtml(html) {
 
 }
 
+function cleanText(text) {
+
+    return text
+
+        // Remove markdown images
+        .replace(/!\[[^\]]*]\([^)]*\)/g, "")
+
+        // Remove common website boilerplate
+        .replace(/^Skip to content.*$/gim, "")
+        .replace(/^Message Us.*$/gim, "")
+        .replace(/^Free consultations.*$/gim, "")
+        .replace(/^English-speaking doctors.*$/gim, "")
+        .replace(/^Schedule a Consultation.*$/gim, "")
+        .replace(/^Search for:.*$/gim, "")
+        .replace(/^Results may vary with each individual.*$/gim, "")
+
+        // Remove gallery labels
+        .replace(/^Before\s*$/gim, "")
+        .replace(/^After\s*$/gim, "")
+
+        // Collapse blank lines
+        .replace(/\n{3,}/g, "\n\n")
+
+        .trim();
+
+}
+
 async function discoverSitemap(origin) {
 
     try {
@@ -104,13 +131,23 @@ async function crawlWebsite(startUrl) {
 
     while (queue.length > 0 && visited.size < 20) {
 
-        const url = queue.shift();
+const url = queue.shift();
 
-        if (!url || visited.has(url)) {
-            continue;
-        }
+if (!url || visited.has(url)) {
+    continue;
+}
 
-        visited.add(url);
+const lowerUrl = url.toLowerCase();
+
+if (
+    lowerUrl.endsWith(".xml") ||
+    lowerUrl.includes("sitemap")
+) {
+    console.log("Skipping sitemap:", url);
+    continue;
+}
+
+visited.add(url);
 
         try {
 
@@ -118,85 +155,113 @@ async function crawlWebsite(startUrl) {
 
             const html = await downloadPage(url);
 
-            const { $, text } = cleanHtml(html);
+const { $, text } = cleanHtml(html);
 
-            pages.push({
-                url,
-                content: text
-            });
+const cleanedText = cleanText(text);
 
-            console.log("\n==============================");
-            console.log(url);
-            console.log(text.substring(0, 2500));
-            console.log("==============================\n");
+const MAX_CONTENT_LENGTH = 12000;
 
-            $("a").each((_, el) => {
+pages.push({
+    url,
+    content: cleanedText.substring(0, MAX_CONTENT_LENGTH)
+});
 
-                const href = $(el).attr("href");
+console.log("\n==============================");
+console.log(url);
+console.log(cleanedText.substring(0, 2500));
+console.log("==============================\n");
 
-                if (!href) return;
+$("a").each((_, el) => {
 
-                try {
+    const href = $(el).attr("href");
 
-                    const next = new URL(href, origin).href;
+    if (!href) return;
 
-                    const important = [
+    try {
 
-                        "/about",
+        const next = new URL(href, origin).href;
+        const lowerNext = next.toLowerCase();
+        const lowerCurrent = url.toLowerCase();
 
-                        "/service",
-                        "/services",
+        const important = [
 
-                        "/treatment",
-                        "/treatments",
+            "/about",
 
-                        "/price",
-                        "/prices",
-                        "/pricing",
-                        "/price-list",
-                        "/fees",
-                        "/cost",
-                        "/costs",
-                        "/package",
-                        "/packages",
-                        "/offer",
-                        "/offers",
-                        "/promotion",
-                        "/promotions",
+            "/service",
+            "/services",
 
-                        "/faq",
-                        "/questions",
+            "/treatment",
+            "/treatments",
 
-                        "/contact"
+            "/price",
+            "/prices",
+            "/pricing",
+            "/price-list",
+            "/fees",
+            "/cost",
+            "/costs",
 
-                    ];
+            "/package",
+            "/packages",
 
-                    if (
+            "/offer",
+            "/offers",
 
-                        next.startsWith(origin) &&
-                        !visited.has(next) &&
-                        !queue.includes(next) &&
-                        (
+            "/promotion",
+            "/promotions",
 
-                            next === origin ||
-                            next === origin + "/" ||
+            "/faq",
+            "/questions",
 
-                            important.some(path =>
-                                next.toLowerCase().includes(path)
-                            )
+            "/contact"
 
-                        )
+        ];
 
-                    ) {
+        const isServiceHub =
 
-                        queue.push(next);
+            lowerCurrent.includes("/services") ||
+            lowerCurrent.includes("/service") ||
+            lowerCurrent.includes("/treatments") ||
+            lowerCurrent.includes("/treatment");
 
-                    }
+        if (
 
-                } catch {}
+            next.startsWith(origin) &&
+            !visited.has(next) &&
+            !queue.includes(next)
 
-            });
+        ) {
 
+            if (
+
+                next === origin ||
+                next === origin + "/" ||
+
+                important.some(path => lowerNext.includes(path)) ||
+
+                (
+                    isServiceHub &&
+                    !lowerNext.endsWith(".jpg") &&
+                    !lowerNext.endsWith(".jpeg") &&
+                    !lowerNext.endsWith(".png") &&
+                    !lowerNext.endsWith(".svg") &&
+                    !lowerNext.endsWith(".gif") &&
+                    !lowerNext.endsWith(".webp") &&
+                    !lowerNext.endsWith(".avif") &&
+                    !lowerNext.includes("#")
+                )
+
+            ) {
+
+                queue.push(next);
+
+            }
+
+        }
+
+    } catch {}
+
+});
         }
 
         catch {

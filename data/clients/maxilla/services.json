@@ -77,7 +77,6 @@
   },
   {
     "name": "Soda or pearl wash of teeth with Air-Flow",
-    "description": "the price of scaling, optragate might be added",
     "price": "130"
   },
   {
@@ -90,7 +89,6 @@
   },
   {
     "name": "Installation of a dental decoration",
-    "description": "cost of decoration added approx 16€",
     "price": "47"
   },
   {
@@ -104,130 +102,6 @@
   {
     "name": "Chemical whitening of one tooth",
     "price": "38"
-  },
-  {
-    "name": "Dental Caries Prophylaxis",
-    "description": "Prevention of dental caries begins during pregnancy: dental check-ups are necessary and carious lesions must be treated without delay."
-  },
-  {
-    "name": "Dental Care",
-    "description": "General dental care for adults and children. Treatment of dental caries (tooth cavities)."
-  },
-  {
-    "name": "Children’s Dental Care",
-    "description": "Children’s dental services by friendly and experienced doctors, children’s cabinet in Tähesaju"
-  },
-  {
-    "name": "Prosthetics",
-    "description": "Oral removable and non-removable and combined dentures"
-  },
-  {
-    "name": "Aesthetic Services",
-    "description": "Teeth whitening, professional cleaning, Air-Flow, dental decorations"
-  },
-  {
-    "name": "Root Canal Treatment",
-    "description": "Relieve tooth pain with our root canal treatment."
-  },
-  {
-    "name": "Oral Surgery",
-    "description": "Maxillofacial surgery. Intraoral operations for the treatment of various diseases, traumas and defects"
-  },
-  {
-    "name": "Implantology",
-    "description": "Treatment and technology related to the artificial tooth root or implant"
-  },
-  {
-    "name": "Gum Plastic",
-    "description": "A surgical procedure that solves medical and aesthetic problems, “growing” or removing gum tissue."
-  },
-  {
-    "name": "Orthodontics",
-    "description": "Correcting the position of the teeth with braces for both children and adults"
-  },
-  {
-    "name": "Orthodontical Aligners",
-    "description": "Correcting the position of the teeth with the help of transparent aligners, Invisalign aligner treatment"
-  },
-  {
-    "name": "Myofunctional Therapy",
-    "description": "Help with various myofunctional disorders, including teeth grinding, pain sensations in the neck, etc"
-  },
-  {
-    "name": "Periodontitis Treatment",
-    "description": "Periodontology, also known as gum disease, involves the prevention, diagnosis, and treatment of periodontal diseases"
-  },
-  {
-    "name": "Dental Check-ups",
-    "description": "Dental check-ups must be conducted and necessary procedures performed at least twice a year for children and once per year for adults."
-  },
-  {
-    "name": "Plaque Removal",
-    "description": "Local prophylactic procedure to remove plaque from teeth."
-  },
-  {
-    "name": "Fissure Sealing",
-    "description": "Sealing of fissures in molars with fluoride-containing material."
-  },
-  {
-    "name": "ICON Caries Treatment",
-    "description": "An innovative solution for early treatment of caries"
-  },
-  {
-    "name": "Laminates",
-    "description": "full-ceramic veneers to cover the front teeth. Laminates can be used to change the color, the shape, and slightly, the size and position of the teeth."
-  },
-  {
-    "name": "Dental bridgework",
-    "description": "a type of prosthesis used to replace missing teeth, where pontic will be attached to the existing abutment teeth. Can be produced using a wide variety of materials (see dental crown)."
-  },
-  {
-    "name": "Dental crown",
-    "description": "an artificial crown (full ceramic, precious metal alloy, or zirconia) to cover the patient’s teeth for aesthetic or functional indications."
-  },
-  {
-    "name": "Post and core",
-    "description": "a post and core (from metal or fiber) will be produced to fix the artificial crown for teeth with a decomposed crown."
-  },
-  {
-    "name": "Dental in-lays and on-lays",
-    "description": "a micro-prosthesis, also known as a dental laboratory-made indirect filling, which thoroughly restores the anatomy of a single tooth. Can be produced from different materials (ceramics, precious metal alloys, zirconia)."
-  },
-  {
-    "name": "Cast partial denture",
-    "description": "a prosthesis with a metal frame and plastic base with accurate metal clasps as fixation elements."
-  },
-  {
-    "name": "Plastic partial denture",
-    "description": "a partial denture made of plastic."
-  },
-  {
-    "name": "Complete dentures",
-    "description": "Type of prosthesis used to replace the teeth when the full arch of teeth is missing. Can be produced in a variety of plastic materials. (Acrylic resin, Deflex, Evolon). Soft lining can be inserted into the denture base."
-  },
-  {
-    "name": "Combined dentures",
-    "description": "This type of prosthesis consists of a combined fixed and removable prosthesis. Combining these two types of prostheses provides better stability than a removable denture."
-  },
-  {
-    "name": "Dentures fixed with a locking system",
-    "description": "Artificial crowns will be placed onto the patient’s teeth with attached retention elements (locks). Missing teeth will be replaced with a removable denture attached to the locks."
-  },
-  {
-    "name": "Root-supported over-denture",
-    "description": "This denture can be used if the patient maintains few natural teeth but the root canals of the remaining teeth have been properly treated. Special retention elements (root locks) will be attached to the root canals of the patient’s natural teeth and a removable denture will be attached to these locks."
-  },
-  {
-    "name": "Telescope dentures",
-    "description": "A specially shaped metal fixture (primary crown) will be attached to existing teeth. Secondary crowns are attached to the removable part of the denture and retention takes place using frictional force between primary and secondary crowns."
-  },
-  {
-    "name": "Implant-supported dentures",
-    "description": "We use the high-quality ANKYLOS Implant System. Individual dental crowns as well as bridgework can be attached to dental implants. It is possible to reconstruct a full dental arch. Implant abutments can also be used to attach removable dentures."
-  },
-  {
-    "name": "Teeth Whitening",
-    "description": "Teeth whitening can help if you want brighter teeth."
   },
   {
     "name": "Temporary filling",
@@ -370,16 +244,73 @@
     "price": "50"
   },
   {
+    "name": "Dental Caries Prophylaxis"
+  },
+  {
+    "name": "Dental Care",
+    "description": "General dental care for adults and children. Treatment of dental caries (tooth cavities)."
+  },
+  {
+    "name": "Children’s Dental Care",
+    "description": "Children’s dental services by friendly and experienced doctors, children’s cabinet in Tähesaju"
+  },
+  {
+    "name": "Prosthetics",
+    "description": "Oral removable and non-removable and combined dentures"
+  },
+  {
+    "name": "Aesthetic Services",
+    "description": "Teeth whitening, professional cleaning, Air-Flow, dental decorations"
+  },
+  {
+    "name": "Root Canal Treatment",
+    "description": "The goal of root canal therapy is to bring the intra-dental environment to a state where the disease can be cured, the tooth will remain symptom-free, and will survive for many years to come."
+  },
+  {
+    "name": "Oral Surgery",
+    "description": "Maxillofacial surgery. Intraoral operations for the treatment of various diseases, traumas and defects"
+  },
+  {
+    "name": "Implantology",
+    "description": "Treatment and technology related to the artificial tooth root or implant"
+  },
+  {
+    "name": "Gum Plastic",
+    "description": "A surgical procedure that solves medical and aesthetic problems, “growing” or removing gum tissue."
+  },
+  {
+    "name": "Orthodontics",
+    "description": "Correcting the position of the teeth with braces for both children and adults"
+  },
+  {
+    "name": "Orthodontical Aligners",
+    "description": "Correcting the position of the teeth with the help of transparent aligners, Invisalign aligner treatment"
+  },
+  {
+    "name": "Myofunctional Therapy",
+    "description": "Help with various myofunctional disorders, including teeth grinding, pain sensations in the neck, etc"
+  },
+  {
+    "name": "Periodontitis Treatment",
+    "description": "Periodontology, also known as gum disease, involves the prevention, diagnosis, and treatment of periodontal diseases"
+  },
+  {
     "name": "Osteopathy",
     "description": "A treatment method aimed at restoring the functionality of the structure (muscle tone, integrity of connective tissue structures, etc.)"
   },
   {
     "name": "Emergency Dental Care",
-    "description": "Get emergency dental care with our 24/7 services."
+    "description": "Emergency dental care appointments for urgent problems. Book an appointment by calling reception!"
   },
   {
     "name": "Diagnistics",
     "description": "Panorama and 3D X-ray"
+  },
+  {
+    "name": "Dental Check-ups"
+  },
+  {
+    "name": "Plaque Removal"
   },
   {
     "name": "Fluoride Application"
@@ -395,16 +326,13 @@
     "name": "Tooth Brushing"
   },
   {
-    "name": "Caries Lesion Treatment",
-    "description": "Treatment of dental caries depends on the extent of the defect and its location on the tooth’s surface."
+    "name": "Caries Lesion Treatment"
   },
   {
-    "name": "Filling",
-    "description": "Caries-damaged teeth can be esthetically and functionally restored with fillings."
+    "name": "Filling"
   },
   {
-    "name": "ART-atraumatic Restorative Treatment",
-    "description": "Caries lesions on small children (up to 3 years of age) can be removed exclusively with hand instruments."
+    "name": "ART-atraumatic Restorative Treatment"
   },
   {
     "name": "Temporary Fillings"
@@ -413,12 +341,64 @@
     "name": "Dual Session Treatment"
   },
   {
+    "name": "ICON Caries Treatment",
+    "description": "An innovative solution for early treatment of caries"
+  },
+  {
     "name": "Remotherapy",
     "description": "helps strengthen tooth enamel and make it more resistant to decay"
   },
   {
     "name": "Dental Laminates",
     "description": "suitable for protecting teeth and hiding defects in more severe cases"
+  },
+  {
+    "name": "Laminates",
+    "description": "full-ceramic veneers to cover the front teeth. Laminates can be used to change the color, the shape, and slightly, the size and position of the teeth."
+  },
+  {
+    "name": "Dental bridgework",
+    "description": "a type of prosthesis used to replace missing teeth, where pontic will be attached to the existing abutment teeth. Can be produced using a wide variety of materials (see dental crown)."
+  },
+  {
+    "name": "Dental crown",
+    "description": "an artificial crown (full ceramic, precious metal alloy, or zirconia) to cover the patient’s teeth for aesthetic or functional indications."
+  },
+  {
+    "name": "Post and core",
+    "description": "a post and core (from metal or fiber) will be produced to fix the artificial crown for teeth with a decomposed crown."
+  },
+  {
+    "name": "Dental in-lays and on-lays",
+    "description": "a micro-prosthesis, also known as a dental laboratory-made indirect filling, which thoroughly restores the anatomy of a single tooth. Can be produced from different materials (ceramics, precious metal alloys, zirconia)."
+  },
+  {
+    "name": "Cast partial denture",
+    "description": "a prosthesis with a metal frame and plastic base with accurate metal clasps as fixation elements."
+  },
+  {
+    "name": "Plastic partial denture",
+    "description": "a partial denture made of plastic."
+  },
+  {
+    "name": "Complete dentures",
+    "description": "Type of prosthesis used to replace the teeth when the full arch of teeth is missing. Can be produced in a variety of plastic materials. (Acrylic resin, Deflex, Evolon). Soft lining can be inserted into the denture base."
+  },
+  {
+    "name": "Dentures fixed with a locking system",
+    "description": "Artificial crowns will be placed onto the patient’s teeth with attached retention elements (locks). Missing teeth will be replaced with a removable denture attached to the locks."
+  },
+  {
+    "name": "Root-supported over-denture",
+    "description": "This denture can be used if the patient maintains few natural teeth but the root canals of the remaining teeth have been properly treated. Special retention elements (root locks) will be attached to the root canals of the patient’s natural teeth and a removable denture will be attached to these locks."
+  },
+  {
+    "name": "Telescope dentures",
+    "description": "A specially shaped metal fixture (primary crown) will be attached to existing teeth. Secondary crowns are attached to the removable part of the denture and retention takes place using frictional force between primary and secondary crowns."
+  },
+  {
+    "name": "Implant-supported dentures",
+    "description": "We use the high-quality ANKYLOS Implant System. Individual dental crowns as well as bridgework can be attached to dental implants. It is possible to reconstruct a full dental arch. Implant abutments can also be used to attach removable dentures."
   },
   {
     "name": "Dental Air-Flow soda wash and pearl cleaning",
@@ -445,63 +425,23 @@
     "description": "If a single tooth in a row has changed color, the above whitening methods will not work on it. In this case, a small hole is drilled on the palate or tongue side surface of the tooth, the old filling is removed, and a special whitening gel is placed in the tooth. The hole created in the tooth is temporarily closed with a filling, and the procedure is repeated every 3-5 days until the desired result is achieved."
   },
   {
-    "name": "Root Canal Treatment with Microscope",
+    "name": "Tooth Gems or Crystals – Dental Decorations",
+    "description": "Dental decorations are tiny crystal figurines that are glued to the tooth without damaging the tooth enamel."
+  },
+  {
+    "name": "Installation of Tooth Gems",
+    "description": "The procedure takes about 15 minutes and is completely painless."
+  },
+  {
+    "name": "Removal of Tooth Gems",
+    "description": "The surface of the tooth is smooth and undamaged even after the decoration is removed."
+  },
+  {
+    "name": "Maintenance of Tooth Gems",
+    "description": "A properly installed and maintained tooth gem should last on the tooth for years."
+  },
+  {
+    "name": "Root Canal Therapy with Microscope",
     "description": "Root canal treatment under a microscope is the most modern way to perform root canal treatment."
-  },
-  {
-    "name": "Healthy Smile",
-    "description": "Get a healthy and beautiful smile with our dental services."
-  },
-  {
-    "name": "Dental Cleaning",
-    "description": "Regular dental cleaning to maintain good oral health."
-  },
-  {
-    "name": "Tooth Whitening",
-    "description": "Get a brighter and whiter smile with our tooth whitening services."
-  },
-  {
-    "name": "Orthodontic Treatment",
-    "description": "Straighten your teeth with our orthodontic treatment."
-  },
-  {
-    "name": "Dental Implants",
-    "description": "Replace missing teeth with our dental implants."
-  },
-  {
-    "name": "Gum Disease Treatment",
-    "description": "Treat gum disease with our professional services."
-  },
-  {
-    "name": "Dental Fillings",
-    "description": "Repair cavities with our dental fillings."
-  },
-  {
-    "name": "Dental Crowns",
-    "description": "Restore damaged teeth with our dental crowns."
-  },
-  {
-    "name": "Dental Bridges",
-    "description": "Replace missing teeth with our dental bridges."
-  },
-  {
-    "name": "Dental Veneers",
-    "description": "Improve the appearance of your teeth with our dental veneers."
-  },
-  {
-    "name": "Dental Implant Surgery",
-    "description": "Replace missing teeth with our dental implant surgery."
-  },
-  {
-    "name": "Gum Grafting",
-    "description": "Treat gum recession with our gum grafting services."
-  },
-  {
-    "name": "Bone Grafting",
-    "description": "Treat bone loss with our bone grafting services."
-  },
-  {
-    "name": "Dental Sedation",
-    "description": "Relax during dental procedures with our dental sedation services."
   }
 ]

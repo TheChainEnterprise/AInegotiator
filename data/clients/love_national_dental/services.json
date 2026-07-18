@@ -1,0 +1,70 @@
+[
+  {
+    "name": "Clear Aligners",
+    "description": "Invisalign for a straighter smile"
+  },
+  {
+    "name": "Teeth Whitening",
+    "description": "Professional teeth whitening for a brighter smile"
+  },
+  {
+    "name": "General Dentistry",
+    "description": "Focuses on oral health and function of teeth and gums"
+  },
+  {
+    "name": "Oral Surgery",
+    "description": "Expert oral surgery for a comfortable recovery"
+  },
+  {
+    "name": "Orthodontics",
+    "description": "Corrects misalignment of teeth"
+  },
+  {
+    "name": "Pediatric Dentistry",
+    "description": "Expert care for children's teeth and gums."
+  },
+  {
+    "name": "Restorative Dentistry",
+    "description": "Restorative dentistry for a complete smile"
+  },
+  {
+    "name": "Same Day Dentures",
+    "description": "Same-day dentures for a confident smile"
+  },
+  {
+    "name": "Sleep Apnea Treatment",
+    "description": "Treatment for sleep apnea and a restful night's sleep"
+  },
+  {
+    "name": "Emergency Care",
+    "description": "Emergency dental care for unexpected issues"
+  },
+  {
+    "name": "Full Arch Dental Implants",
+    "description": "Full-arch dental implants for a complete smile"
+  },
+  {
+    "name": "Cosmetic Dentistry",
+    "description": "Improves the visual appearance of teeth and smile"
+  },
+  {
+    "name": "Implants",
+    "description": "Replaces missing teeth with artificial ones"
+  },
+  {
+    "name": "Implant Supported Dentures",
+    "description": "specialized dentures that, instead of being stabilized by adhesives or frameworks, attach to dental implants"
+  },
+  {
+    "name": "All on 4 Overdentures",
+    "description": "uses four economically placed implants per row, with overdentures as the replacement teeth"
+  },
+  {
+    "name": "Zirconia Bridges",
+    "description": "dental implants that use bridges made of highly durable zirconia, instead of porcelain and acrylic dentures"
+  },
+  {
+    "name": "Porcelain Veneers",
+    "description": "Thin shells bonded to the front surface of teeth to improve appearance"
+  }
+]

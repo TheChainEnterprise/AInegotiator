@@ -24,7 +24,7 @@ const {
 } = require("./engine/importProcessor");
 
 // Use the environment variable if available, otherwise use the fallback for local testing
-const finalApiKey = process.env.GROQ_API_KEY || "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";
+const finalApiKey = process.env.GROQ_API_KEY || "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";
 const groq = new Groq({ apiKey: finalApiKey });
 
 const app = express();

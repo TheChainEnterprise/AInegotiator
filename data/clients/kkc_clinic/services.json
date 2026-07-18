@@ -1,0 +1,325 @@
+[
+  {
+    "name": "Hydrafacial",
+    "description": "Multi-step treatment that deeply cleanses, extracts impurities, and replenishes hydration without irritating sensitive or acne-prone skin.",
+    "price": "6,000"
+  },
+  {
+    "name": "7-Step Signature Facial",
+    "description": "A full reset with extraction, radiofrequency, and hydration in one session.",
+    "price": "฿5,000"
+  },
+  {
+    "name": "RF Microneedling",
+    "description": "Boxcar, rolling, deeper textures (preferred for darker skin)",
+    "price": "15000"
+  },
+  {
+    "name": "Acne Treatment",
+    "description": "Calm active breakouts and prevent new ones with dermatologist-led care.",
+    "price": "1,000"
+  },
+  {
+    "name": "Acne Scar Treatment",
+    "description": "Resurfacing to match the method to your scar type.",
+    "price": "฿2,000"
+  },
+  {
+    "name": "Skin Whitening",
+    "description": "Targeted treatments for acne, dullness, congestion, and dehydrated skin."
+  },
+  {
+    "name": "Anti-Wrinkle Injections",
+    "description": "Smooth wrinkles, restore lost volume, and refresh tired-looking skin."
+  },
+  {
+    "name": "Jaw Slimming Injections",
+    "description": "Smooth wrinkles, restore lost volume, and refresh tired-looking skin."
+  },
+  {
+    "name": "Dermal Fillers",
+    "description": "Restore lost volume and refresh facial contours with smooth hyaluronic filler.",
+    "price": "15,000 THB"
+  },
+  {
+    "name": "Biostimulators",
+    "description": "Advanced, non-surgical treatments that stimulate collagen production to restore firmness and improve skin quality.",
+    "price": "Starting from ฿30,000"
+  },
+  {
+    "name": "Skin Boosters",
+    "description": "Smooth wrinkles, restore lost volume, and refresh tired-looking skin.",
+    "price": 12000
+  },
+  {
+    "name": "Hyperhidrosis Treatment",
+    "description": "Smooth wrinkles, restore lost volume, and refresh tired-looking skin."
+  },
+  {
+    "name": "Ultherapy",
+    "description": "Firm, lift, and tighten sagging skin with little to no downtime.",
+    "price": "฿10,000"
+  },
+  {
+    "name": "HIFU",
+    "description": "Firm, lift, and tighten sagging skin with little to no downtime."
+  },
+  {
+    "name": "Thermage",
+    "description": "Firm, lift, and tighten sagging skin with little to no downtime."
+  },
+  {
+    "name": "Thread Lift",
+    "description": "Firm, lift, and tighten sagging skin with little to no downtime."
+  },
+  {
+    "name": "EMFACE",
+    "description": "Firm, lift, and tighten sagging skin with little to no downtime."
+  },
+  {
+    "name": "Liquid Facelift",
+    "description": "Firm, lift, and tighten sagging skin with little to no downtime."
+  },
+  {
+    "name": "Dual Yellow Laser",
+    "description": "Dual-wavelength laser that treats active acne, post-inflammatory redness, and early scarring.",
+    "price": "4,000"
+  },
+  {
+    "name": "CO2 Laser",
+    "description": "Deep ice pick, severe atrophic",
+    "price": "4500"
+  },
+  {
+    "name": "IPL Photofacial",
+    "description": "Treat pigmentation, scarring, and unwanted hair with precision lasers."
+  },
+  {
+    "name": "Mole, Skin Tag & Milia Removal",
+    "description": "Treat pigmentation, scarring, and unwanted hair with precision lasers."
+  },
+  {
+    "name": "Laser Hair Removal",
+    "description": "Treat pigmentation, scarring, and unwanted hair with precision lasers."
+  },
+  {
+    "name": "VASER Liposuction",
+    "description": "Remove stubborn fat, tighten loose skin, and reshape problem areas."
+  },
+  {
+    "name": "CoolSculpting",
+    "description": "Remove stubborn fat, tighten loose skin, and reshape problem areas."
+  },
+  {
+    "name": "Fat Dissolving Injection",
+    "description": "Remove stubborn fat, tighten loose skin, and reshape problem areas."
+  },
+  {
+    "name": "Cellulite Treatment",
+    "description": "Remove stubborn fat, tighten loose skin, and reshape problem areas."
+  },
+  {
+    "name": "J-Plasma",
+    "description": "Remove stubborn fat, tighten loose skin, and reshape problem areas."
+  },
+  {
+    "name": "Hip Dip Filler",
+    "description": "Remove stubborn fat, tighten loose skin, and reshape problem areas."
+  },
+  {
+    "name": "Gynecomastia Surgery",
+    "description": "Remove stubborn fat, tighten loose skin, and reshape problem areas."
+  },
+  {
+    "name": "IV Drips",
+    "description": "Custom IV drips and therapies for energy, immunity, and recovery."
+  },
+  {
+    "name": "NAD+ Therapy",
+    "description": "Custom IV drips and therapies for energy, immunity, and recovery."
+  },
+  {
+    "name": "Botox",
+    "description": "A non-surgical treatment that relaxes facial muscles to reduce wrinkles and fine lines.",
+    "price": "Starting from ฿1,600"
+  },
+  {
+    "name": "Fillers",
+    "description": "A treatment that uses injectable fillers to restore lost volume and smooth out wrinkles and fine lines."
+  },
+  {
+    "name": "Microneedling"
+  },
+  {
+    "name": "Cheek Filler"
+  },
+  {
+    "name": "Meso Fat"
+  },
+  {
+    "name": "Mint Thread Lift"
+  },
+  {
+    "name": "Hyaluronidase"
+  },
+  {
+    "name": "Temple Filler"
+  },
+  {
+    "name": "Vitamin IV Therapy"
+  },
+  {
+    "name": "Q-Switch Laser"
+  },
+  {
+    "name": "CO2 Fractional Laser",
+    "description": "Fractional resurfacing that smooths scars and reduces oil gland activity in persistent or severe acne.",
+    "price": "4,500"
+  },
+  {
+    "name": "Blue Light Acne Away Killer",
+    "description": "Non-invasive light therapy that eliminates acne-causing bacteria and balances oil production with no downtime.",
+    "price": "4,000"
+  },
+  {
+    "name": "Conc Cell Injection",
+    "description": "Rapid-acting anti-inflammatory injection that calms cystic acne and reduces swelling.",
+    "price": "7,500"
+  },
+  {
+    "name": "Mesotherapy",
+    "description": "Delivers antioxidants and vitamins beneath the skin to strengthen barrier function and reduce pigmentation breakouts.",
+    "price": "3,000"
+  },
+  {
+    "name": "Plasma Peel",
+    "description": "Uses plasma energy to destroy C. acnes bacteria, reduce redness, and speed up skin renewal.",
+    "price": "2,000"
+  },
+  {
+    "name": "Super Clear Acne Mask",
+    "description": "Soothes inflammation and supports skin recovery while reducing active acne.",
+    "price": "2,500"
+  },
+  {
+    "name": "Clear Face",
+    "description": "Balances sebum production and keeps pores clear between medical treatments.",
+    "price": "2,000"
+  },
+  {
+    "name": "Turbo Clear Treatment",
+    "description": "Gently purifies congested pores using oxygen infusion to remove buildup and prevent new breakouts.",
+    "price": "2,500"
+  },
+  {
+    "name": "Blackhead Nose Treatment",
+    "description": "Removes blackheads and deep-seated impurities safely and hygienically.",
+    "price": "1,000"
+  },
+  {
+    "name": "Subcision",
+    "price": "3000",
+    "description": "Rolling, tethered atrophic scars"
+  },
+  {
+    "name": "Blink Laser",
+    "price": "3750",
+    "description": "Brown marks (PIH)"
+  },
+  {
+    "name": "IPL",
+    "price": "4000",
+    "description": "Mixed PIE + PIH, early scars"
+  },
+  {
+    "name": "Dermal Fillers (HA)",
+    "price": "15000",
+    "description": "Volume restoration after subcision"
+  },
+  {
+    "name": "Kenacort Injections",
+    "price": "2000",
+    "description": "Raised scars (hypertrophic and keloid)"
+  },
+  {
+    "name": "Sculptra",
+    "description": "Poly-L-lactic acid injectable that stimulates deep collagen growth for structural support.",
+    "price": "Starting from ฿50,000"
+  },
+  {
+    "name": "Radiesse",
+    "description": "Calcium hydroxylapatite microspheres in a gel that provides immediate volume and long-term collagen stimulation.",
+    "price": "Starting from ฿35,000"
+  },
+  {
+    "name": "Profhilo",
+    "description": "High-concentration hyaluronic acid injectable that improves hydration and elasticity without adding bulk.",
+    "price": "Starting from ฿30,000"
+  },
+  {
+    "name": "HArmonyCa",
+    "description": "Hybrid injectable that combines HA and CaHA to deliver instant hydration plus long-term collagen stimulation.",
+    "price": "Starting from ฿35,000"
+  },
+  {
+    "name": "Ellansé",
+    "description": "Polycaprolactone (PCL) microspheres in a smooth carrier gel that restores volume immediately and stimulates collagen production over time.",
+    "price": "Starting from ฿35,000"
+  },
+  {
+    "name": "Botox Treatment",
+    "description": "A non-surgical treatment that relaxes facial muscles to reduce wrinkles and fine lines.",
+    "price": "Starting from ฿1,600"
+  },
+  {
+    "name": "Botox for Excessive Sweating",
+    "description": "A clinically proven solution for excessive sweating, approved by the FDA for treating underarm sweating.",
+    "price": "4,000 THB"
+  },
+  {
+    "name": "Limited-time offers and deals",
+    "description": "Promotions on skin, face, and body treatments"
+  },
+  {
+    "name": "Skin Boosters / Biostimulators",
+    "description": "Long-term collagen rebuild",
+    "price": "12000"
+  },
+  {
+    "name": "Acne Treatment Programs",
+    "description": "Medical-grade protocols to calm active breakouts and bring oil under control.",
+    "price": "฿1,000"
+  },
+  {
+    "name": "RF Microneedling with Sylfirm X",
+    "description": "Rebuilds collagen to smooth texture and soften scars.",
+    "price": "฿15,000"
+  },
+  {
+    "name": "Blackhead Removal",
+    "description": "Targets stubborn congestion directly.",
+    "price": "฿1,000"
+  },
+  {
+    "name": "Skin Whitening Injections",
+    "description": "Delivers brightening antioxidants to even out tone.",
+    "price": "฿6,500"
+  },
+  {
+    "name": "Pigment-Targeting Laser Treatments",
+    "description": "Breaks down melanin so the skin clears gradually."
+  },
+  {
+    "name": "Facial Treatments",
+    "description": "Matched to your skin, from deep-cleansing to hydrating options.",
+    "price": "฿2,000"
+  },
+  {
+    "name": "Ultherapy and Other Non-Surgical Lifting Options",
+    "description": "Tightens and lifts from below the surface."
+  },
+  {
+    "name": "Skin, face, and body treatments",
+    "description": "Limited-time offers and deals"
+  }
+]
