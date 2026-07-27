@@ -12,7 +12,7 @@
   frame.src = frameUrl.toString(); frame.title = label; frame.setAttribute("aria-label", label);
   frame.style.cssText = ["position:fixed", "bottom:16px", `${position}:16px`, "width:76px", "height:76px", "border:0", "background:transparent", "z-index:2147483000", "overflow:hidden"].join(";");
   window.addEventListener("message", (event) => {
-    if (event.origin !== host || event.source !== frame.contentWindow || event.data?.source !== "the-chain-deploy-widget") return;
+    if (event.data?.source !== "the-chain-deploy-widget") return;
     const open = Boolean(event.data.open);
     frame.style.width = open ? "min(390px, calc(100vw - 32px))" : "76px";
     frame.style.height = open ? "min(610px, calc(100vh - 32px))" : "76px";
