@@ -1,14 +1,26 @@
-// The Chain: AI Negotiator Engine v4.1.3 (Multi-Tenant Architecture + Strategy Versioning + Isolated Logging + Automated Dual Alerting)
-require('dotenv').config(); 
+// The Chain: AI Negotiator Engine v5.0 (MongoDB-backed storage — persists across restarts)
+require('dotenv').config();
 const { Groq } = require('groq-sdk');
 const express = require('express');
-const cors = require('cors'); 
+const cors = require('cors');
 const fs = require("fs");
 const cron = require("node-cron");
 const path = require("path");
+
+// CHANGED: connectDB starts the shared database connection at server startup
+const { connectDB } = require("./engine/db");
+
+// CHANGED: these are now async, MongoDB-backed functions instead of filesystem paths
 const {
-    getTenantDir,
-    getVaultPath,
+    getTenantFile,
+    setTenantFile,
+    deleteTenantFile,
+    deleteTenantData,
+    appendTenantLog,
+    getTenantLog,
+    updateTenantLogEntry,
+    deleteTenantLogEntry,
+    listTenantIds,
 } = require("./engine/tenants");
 
 const {
@@ -24,18 +36,17 @@ const {
 } = require("./engine/importProcessor");
 
 // Use the environment variable if available, otherwise use the fallback for local testing
-const finalApiKey = process.env.GROQ_API_KEY || "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";
+const finalApiKey = process.env.GROQ_API_KEY || "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";
 const groq = new Groq({ apiKey: finalApiKey });
 
 const app = express();
-app.use(cors({ origin: '*' })); 
+app.use(cors({ origin: '*' }));
 const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // THOUGHT BUFFER: Helper to simulate natural delay
-
 const simulateThinking = () => Promise.resolve();
 
 // ====================================
@@ -59,22 +70,10 @@ const updateCalendarSync = async (tenantId) => {
     try {
 
         const response = await fetch(calendarUrl);
-
         const data = await response.json();
 
-        const filePath = path.join(
-            getTenantDir(tenantId),
-            "availability.json"
-        );
-
-        fs.writeFileSync(
-            filePath,
-            JSON.stringify(
-                { availableSlots: data },
-                null,
-                2
-            )
-        );
+        // CHANGED: was fs.writeFileSync to availability.json
+        await setTenantFile(tenantId, "availability.json", { availableSlots: data });
 
     } catch (err) {
 
@@ -87,29 +86,19 @@ const updateCalendarSync = async (tenantId) => {
 
 };
 
-const getAvailability = (tenantId) => {
+// CHANGED: now async, reads from MongoDB instead of the filesystem
+const getAvailability = async (tenantId) => {
 
-    const filePath = path.join(
-        getTenantDir(tenantId),
-        "availability.json"
-    );
-
-    if (fs.existsSync(filePath)) {
-
-        return JSON.parse(
-            fs.readFileSync(filePath, "utf8")
-        ).availableSlots || [];
-
-    }
-
-    return [];
+    const doc = await getTenantFile(tenantId, "availability.json", { availableSlots: [] });
+    return doc.availableSlots || [];
 
 };
-
 
 // ====================================
 // ALERT SYSTEM
 // ====================================
+// Unchanged — config.json is a static file that ships with the code, not
+// per-tenant runtime data, so it's fine to keep reading it from disk.
 
 const sendAlert = (tenantId, message) => {
 
@@ -126,7 +115,7 @@ const sendAlert = (tenantId, message) => {
     const businessWebhook =
         webhooks[tenantId];
 
-const adminWebhook = process.env.TELEGRAM_ALERT_WEBHOOK;
+    const adminWebhook = process.env.TELEGRAM_ALERT_WEBHOOK;
 
     const destinations = [
         businessWebhook,
@@ -158,82 +147,84 @@ const INITIAL_VAULT = {
   "client-123": { id: "client-123", name: "Elena Rostova", label: "Laser Resurfacing", price: 950, status: "Active", history: [], analysis: { buyerProfile: "Decisive Buyer", objectionType: "None", concessionStep: "Baseline Stable" } }
 };
 
-// Global Configs
+// Global Configs — static, unchanged
 const config = JSON.parse(fs.readFileSync(path.join(__dirname, "config.json"), "utf8"));
 const { CONTRACT_RULES, TRAINING_ENABLED } = config;
 
 // ====================================
 // DYNAMIC PROMPT BUILDER
 // ====================================
+// CHANGED: this whole function is now async, since it reads tenant data from MongoDB
 
-const buildSystemPrompt = (
+const buildSystemPrompt = async (
     tenantId,
     userMessage = ""
 ) => {
 
-    const businessPath = path.join(
-        getTenantDir(tenantId),
-        "business.json"
-    );
+    const defaultBusiness = {
+        businessName: "Business",
+        industry: "",
+        description: "",
+        website: "",
+        email: "",
+        phone: "",
+        whatsapp: "",
+        address: "",
+        bookingUrl: "",
+        openingHours: {},
+        tone: "Professional"
+    };
 
-    const business = fs.existsSync(businessPath)
-        ? JSON.parse(
-            fs.readFileSync(
-                businessPath,
-                "utf8"
-            )
-        )
-        : {
-            businessName: "Business",
-            industry: "",
-            description: "",
-            website: "",
-            email: "",
-            phone: "",
-            whatsapp: "",
-            address: "",
-            bookingUrl: "",
-            openingHours: {},
-            tone: "Professional"
-        };
+    // CHANGED: load business + services + faq + knowledge from MongoDB in parallel
+    const [business, services, faq, knowledge] = await Promise.all([
+        getTenantFile(tenantId, "business.json", defaultBusiness),
+        getTenantFile(tenantId, "services.json", []),
+        getTenantFile(tenantId, "faq.json", []),
+        getTenantFile(tenantId, "knowledge.json", [])
+    ]);
 
     // ====================================
     // Load Business Knowledge
     // ====================================
+    // CHANGED: retrieval.js no longer touches disk itself — we pass the
+    // already-loaded arrays straight in.
 
-const retrieved = retrieveRelevantKnowledge({
-    tenantDir: getTenantDir(tenantId),
-    message: userMessage,
-    limit: 5
-});
+    const retrieved = retrieveRelevantKnowledge({
+        services,
+        faq,
+        knowledge,
+        message: userMessage,
+        limit: 5
+    });
 
-const services = retrieved
-    .filter(r => r.source === "services.json")
-    .map(r => r.item);
+    const retrievedServices = retrieved
+        .filter(r => r.source === "services.json")
+        .map(r => r.item);
 
-const faq = retrieved
-    .filter(r => r.source === "faq.json")
-    .map(r => r.item);
+    const retrievedFaq = retrieved
+        .filter(r => r.source === "faq.json")
+        .map(r => r.item);
 
-const knowledge = retrieved
-    .filter(r => r.source === "knowledge.json")
-    .map(r => r.item);
+    const retrievedKnowledge = retrieved
+        .filter(r => r.source === "knowledge.json")
+        .map(r => r.item);
 
-console.log("========== RETRIEVAL ==========");
-console.log("User:", userMessage);
+    console.log("========== RETRIEVAL ==========");
+    console.log("User:", userMessage);
 
-console.log(
-    retrieved.map(result => ({
-        source: result.source,
-        title:
-            result.item.title ||
-            result.item.question ||
-            result.item.name
-    }))
-);
+    console.log(
+        retrieved.map(result => ({
+            source: result.source,
+            title:
+                result.item.title ||
+                result.item.question ||
+                result.item.name
+        }))
+    );
 
-console.log("===============================");
+    console.log("===============================");
 
+    // Playbooks are static repo files, not per-tenant data — unchanged, still fs-based
     const manifestPath = path.join(
         __dirname,
         "playbooks",
@@ -268,8 +259,8 @@ console.log("===============================");
         ).dynamicRules || []
         : [];
 
-    const availability =
-        getAvailability(tenantId);
+    // CHANGED: getAvailability is now async
+    const availability = await getAvailability(tenantId);
 
     return `
 You are Val, the AI representative for ${business.businessName}.
@@ -299,7 +290,7 @@ ${business.website}
 
 Services:
 
-${services.map(service => `
+${retrievedServices.map(service => `
 Name: ${service.name}
 Description: ${service.description}
 Setup Price: €${service.price}
@@ -317,14 +308,14 @@ ${availability.length
 
 FAQs:
 
-${faq.map(item => `
+${retrievedFaq.map(item => `
 Q: ${item.question}
 A: ${item.answer}
 `).join("\n")}
 
 Knowledge Base:
 
-${knowledge.map(item => `
+${retrievedKnowledge.map(item => `
 Title: ${item.title}
 
 ${item.content}
@@ -456,301 +447,117 @@ Always finish with:
 `;
 };
 
-// Logger: Records successful closures per tenant
-const logDealSuccess = (tenantId, session) => {
+// CHANGED: now async — appends to MongoDB instead of a local file
+const logDealSuccess = async (tenantId, session) => {
     const successEntry = { timestamp: new Date().toISOString(), client: session.name, finalPrice: session.price, analysis: session.analysis };
-    fs.appendFileSync(path.join(getTenantDir(tenantId), "deals.json"), JSON.stringify(successEntry) + "\n");
+    await appendTenantLog(tenantId, "deals.json", successEntry);
 };
 
-// Audit Logger
-const logAudit = (tenantId, sessionId, input, output, analysis) => {
+// CHANGED: now async — appends to MongoDB instead of a local file
+const logAudit = async (tenantId, sessionId, input, output, analysis) => {
     const auditEntry = { timestamp: new Date().toISOString(), sessionId, input, output, analysis };
-    fs.appendFileSync(path.join(getTenantDir(tenantId), "audit.json"), JSON.stringify(auditEntry) + "\n");
+    await appendTenantLog(tenantId, "audit.json", auditEntry);
 };
 
 // API ENDPOINTS
 
-app.get('/api/leads', (req, res) => {
+// CHANGED: every route below is now async and uses the MongoDB-backed helpers
+// instead of fs.readFileSync / fs.writeFileSync / fs.appendFileSync.
+
+app.get('/api/leads', async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
-
-    const leadsPath = path.join(getTenantDir(tenantId), "leads.json");
-
-    if (!fs.existsSync(leadsPath)) {
-        return res.json([]);
-    }
-
-    const lines = fs
-        .readFileSync(leadsPath, "utf8")
-        .split("\n")
-        .filter(line => line.trim() !== "");
-
-    const leads = lines
-        .map(line => {
-            try {
-                return JSON.parse(line);
-            } catch {
-                return null;
-            }
-        })
-        .filter(Boolean);
-
-    res.json(leads.reverse());
+    const leads = await getTenantLog(tenantId, "leads.json");
+    res.json(leads);
 });
 
-app.delete("/api/leads/:id", (req, res) => {
+app.delete("/api/leads/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const file = path.join(getTenantDir(tenantId), "leads.json");
-    const targetId = String(req.params.id);
-
-    console.log(`[DELETE] Request received for ID: ${targetId}`);
-
-    if (!fs.existsSync(file)) {
-        console.log("[DELETE] File not found, returning success");
-        return res.json({ success: true });
-    }
-
-    const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
-    
-    // Explicit filter: keep only leads whose ID does NOT match
-    const remainingLeads = lines.filter(line => {
-        try {
-            const lead = JSON.parse(line);
-            console.log(`[DELETE] Checking lead ID: ${lead.id} against target: ${targetId}`);
-            return String(lead.id) !== targetId;
-        } catch (e) {
-            return false;
-        }
-    });
-
-    console.log(`[DELETE] Original count: ${lines.length}, Remaining count: ${remainingLeads.length}`);
-
-    fs.writeFileSync(file, remainingLeads.map(l => JSON.stringify(l)).join("\n") + (remainingLeads.length ? "\n" : ""));
+    const targetId = Number(req.params.id);
+    await deleteTenantLogEntry(tenantId, "leads.json", targetId);
     res.json({ success: true });
 });
 
-app.post("/api/leads", (req, res) => {
+app.post("/api/leads", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const leadsPath = path.join(getTenantDir(tenantId), "leads.json");
-
-    // Ensure we are saving a clean object
     const lead = {
         id: Date.now(),
         ...req.body
     };
-
-    // Use JSON.stringify(lead) directly to prevent double-encoding
-    fs.appendFileSync(leadsPath, JSON.stringify(lead) + "\n");
-
+    await appendTenantLog(tenantId, "leads.json", lead);
     res.json({ success: true, lead });
 });
 
-app.put("/api/leads/:id", (req, res) => {
+app.put("/api/leads/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const file = path.join(getTenantDir(tenantId), "leads.json");
+    const targetId = Number(req.params.id);
 
-    if (!fs.existsSync(file)) return res.status(404).json({ error: "File not found" });
+    // Force the existing id to be kept, same as the original behavior
+    const { id, ...updates } = req.body;
 
-    const lines = fs.readFileSync(file, "utf8").split("\n").filter(Boolean);
-    const leads = lines.map(line => JSON.parse(line));
+    const updated = await updateTenantLogEntry(tenantId, "leads.json", targetId, updates);
 
-    const index = leads.findIndex(l => String(l.id) === String(req.params.id));
-    if (index === -1) return res.status(404).json({ error: "Lead not found" });
+    if (!updated) return res.status(404).json({ error: "Lead not found" });
 
-    leads[index] = { ...req.body, id: leads[index].id }; // Force existing ID
-    fs.writeFileSync(file, leads.map(l => JSON.stringify(l)).join("\n") + "\n");
-    
     res.json({ success: true });
 });
 
-app.get("/api/bookings", (req, res) => {
-
+app.get("/api/bookings", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-
-    const file = path.join(
-        getTenantDir(tenantId),
-        "bookings.json"
-    );
-
-    if (!fs.existsSync(file)) {
-        fs.writeFileSync(file, "");
-        return res.json([]);
-    }
-
-    const bookings = fs
-        .readFileSync(file, "utf8")
-        .split("\n")
-        .filter(Boolean)
-        .map(line => JSON.parse(line));
-
-    res.json(bookings.reverse());
-
+    const bookings = await getTenantLog(tenantId, "bookings.json");
+    res.json(bookings);
 });
 
-app.post("/api/bookings", (req, res) => {
-
+app.post("/api/bookings", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-
-    const file = path.join(
-        getTenantDir(tenantId),
-        "bookings.json"
-    );
-
     const booking = {
         id: Date.now(),
         ...req.body
     };
-
-    fs.appendFileSync(
-        file,
-        JSON.stringify(booking) + "\n"
-    );
-
-    res.json({
-        success: true,
-        booking
-    });
-
+    await appendTenantLog(tenantId, "bookings.json", booking);
+    res.json({ success: true, booking });
 });
 
-app.delete("/api/bookings/:id", (req, res) => {
-
+app.delete("/api/bookings/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-
-    const file = path.join(
-        getTenantDir(tenantId),
-        "bookings.json"
-    );
-
-    if (!fs.existsSync(file)) {
-        return res.json({ success: true });
-    }
-
-    const bookings = fs
-        .readFileSync(file, "utf8")
-        .split("\n")
-        .filter(Boolean)
-        .map(line => JSON.parse(line))
-        .filter(b => String(b.id) !== req.params.id);
-
-    fs.writeFileSync(
-        file,
-        bookings.map(b => JSON.stringify(b)).join("\n") +
-            (bookings.length ? "\n" : "")
-    );
-
-    res.json({
-        success: true
-    });
-
+    const targetId = Number(req.params.id);
+    await deleteTenantLogEntry(tenantId, "bookings.json", targetId);
+    res.json({ success: true });
 });
 
-app.put("/api/bookings/:id", (req, res) => {
-
+app.put("/api/bookings/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
+    const targetId = Number(req.params.id);
 
-    const file = path.join(
-        getTenantDir(tenantId),
-        "bookings.json"
-    );
+    const { id, ...updates } = req.body;
 
-    if (!fs.existsSync(file)) {
-        return res.status(404).json({
-            error: "Bookings file not found."
-        });
-    }
+    const updated = await updateTenantLogEntry(tenantId, "bookings.json", targetId, updates);
 
-    const bookings = fs
-        .readFileSync(file, "utf8")
-        .split("\n")
-        .filter(Boolean)
-        .map(line => JSON.parse(line));
+    if (!updated) return res.status(404).json({ error: "Booking not found." });
 
-    const index = bookings.findIndex(
-        booking => String(booking.id) === req.params.id
-    );
-
-    if (index === -1) {
-        return res.status(404).json({
-            error: "Booking not found."
-        });
-    }
-
-    bookings[index] = {
-        ...bookings[index],
-        ...req.body,
-        id: bookings[index].id
-    };
-
-    fs.writeFileSync(
-        file,
-        bookings
-            .map(booking => JSON.stringify(booking))
-            .join("\n") +
-            (bookings.length ? "\n" : "")
-    );
-
-    res.json({
-        success: true,
-        booking: bookings[index]
-    });
-
+    res.json({ success: true, booking: updated });
 });
 
 // ====================================
 // ADMIN CLIENT MANAGEMENT
 // ====================================
 
-app.get("/api/admin/clients", (req, res) => {
+app.get("/api/admin/clients", async (req, res) => {
 
-const clientsRoot = path.dirname(getTenantDir("default"));
+    const tenantIds = await listTenantIds();
 
-    if (!fs.existsSync(clientsRoot)) {
-        return res.json([]);
-    }
-
-    const folders = fs.readdirSync(clientsRoot, {
-        withFileTypes: true
-    });
-
-    const clients = folders
-        .filter(folder => folder.isDirectory())
-        .map(folder => {
-
-            const businessPath = path.join(
-                clientsRoot,
-                folder.name,
-                "business.json"
-            );
-
-            if (!fs.existsSync(businessPath))
-                return null;
-
-            try {
-
-                return {
-                    id: folder.name,
-                    ...JSON.parse(
-                        fs.readFileSync(
-                            businessPath,
-                            "utf8"
-                        )
-                    )
-                };
-
-            } catch {
-
-                return null;
-
-            }
-
+    const clients = await Promise.all(
+        tenantIds.map(async (tenantId) => {
+            const business = await getTenantFile(tenantId, "business.json", null);
+            if (!business) return null;
+            return { id: tenantId, ...business };
         })
-        .filter(Boolean);
+    );
 
-    res.json(clients);
+    res.json(clients.filter(Boolean));
 
 });
 
-app.post("/api/admin/clients", (req, res) => {
+app.post("/api/admin/clients", async (req, res) => {
 
     const {
         id,
@@ -767,61 +574,36 @@ app.post("/api/admin/clients", (req, res) => {
         });
     }
 
-const clientsRoot = path.join(
-    __dirname,
-    "data",
-    "clients"
-);
+    const existing = await getTenantFile(id, "business.json", null);
 
-const tenantDir = path.join(clientsRoot, id);
+    if (existing) {
+        return res.status(409).json({
+            error: "Client already exists."
+        });
+    }
 
-console.log("================================");
-console.log("Creating client:", id);
-console.log("Tenant directory:", tenantDir);
-console.log("Exists:", fs.existsSync(tenantDir));
-console.log("================================");
-
-if (fs.existsSync(tenantDir)) {
-    return res.status(409).json({
-        error: "Client already exists."
+    await setTenantFile(id, "business.json", {
+        businessName,
+        industry,
+        website,
+        email,
+        phone,
+        description: "",
+        address: "",
+        whatsapp: phone,
+        bookingUrl: "",
+        tone: "Professional",
+        openingHours: {}
     });
-}
 
-fs.mkdirSync(tenantDir, {
-    recursive: true
-});
+    await setTenantFile(id, "services.json", []);
+    await setTenantFile(id, "faq.json", []);
+    await setTenantFile(id, "knowledge.json", []);
+    await setTenantFile(id, "availability.json", { availableSlots: [] });
+    await setTenantFile(id, "vault.json", {});
 
-    fs.writeFileSync(
-        path.join(tenantDir, "business.json"),
-        JSON.stringify({
-            businessName,
-            industry,
-            website,
-            email,
-            phone,
-            description: "",
-            address: "",
-            whatsapp: phone,
-            bookingUrl: "",
-            tone: "Professional",
-            openingHours: {}
-        }, null, 2)
-    );
-
-    fs.writeFileSync(path.join(tenantDir, "services.json"), JSON.stringify([], null, 2));
-    fs.writeFileSync(path.join(tenantDir, "faq.json"), JSON.stringify([], null, 2));
-    fs.writeFileSync(path.join(tenantDir, "knowledge.json"), JSON.stringify([], null, 2));
-    fs.writeFileSync(path.join(tenantDir, "availability.json"), JSON.stringify({ availableSlots: [] }, null, 2));
-
-    fs.writeFileSync(path.join(tenantDir, "leads.json"), "");
-    fs.writeFileSync(path.join(tenantDir, "bookings.json"), "");
-    fs.writeFileSync(path.join(tenantDir, "audit.json"), "");
-    fs.writeFileSync(path.join(tenantDir, "deals.json"), "");
-
-    fs.writeFileSync(
-        getVaultPath(id),
-        JSON.stringify({}, null, 2)
-    );
+    // Note: leads/bookings/audit/deals need no setup — getTenantLog
+    // simply returns an empty array until the first entry is appended.
 
     res.json({
         success: true
@@ -829,20 +611,17 @@ fs.mkdirSync(tenantDir, {
 
 });
 
-app.delete("/api/admin/clients/:id", (req, res) => {
+app.delete("/api/admin/clients/:id", async (req, res) => {
 
-    const tenantDir = getTenantDir(req.params.id);
+    const existing = await getTenantFile(req.params.id, "business.json", null);
 
-    if (!fs.existsSync(tenantDir)) {
+    if (!existing) {
         return res.status(404).json({
             error: "Client not found."
         });
     }
 
-    fs.rmSync(tenantDir, {
-        recursive: true,
-        force: true
-    });
+    await deleteTenantData(req.params.id);
 
     res.json({
         success: true
@@ -854,55 +633,33 @@ app.delete("/api/admin/clients/:id", (req, res) => {
 // ADMIN BUSINESS PROFILE
 // ====================================
 
-app.get("/api/admin/profile", (req, res) => {
+app.get("/api/admin/profile", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const businessPath = path.join(
-        getTenantDir(tenantId),
-        "business.json"
-    );
+    const business = await getTenantFile(tenantId, "business.json", {
+        businessName: "",
+        industry: "",
+        description: "",
+        website: "",
+        email: "",
+        phone: "",
+        whatsapp: "",
+        address: "",
+        bookingUrl: "",
+        tone: "Professional",
+        openingHours: {}
+    });
 
-    if (!fs.existsSync(businessPath)) {
-
-        return res.json({
-            businessName: "",
-            industry: "",
-            description: "",
-            website: "",
-            email: "",
-            phone: "",
-            whatsapp: "",
-            address: "",
-            bookingUrl: "",
-            tone: "Professional",
-            openingHours: {}
-        });
-
-    }
-
-    res.json(
-        JSON.parse(
-            fs.readFileSync(
-                businessPath,
-                "utf8"
-            )
-        )
-    );
+    res.json(business);
 
 });
 
-app.post("/api/admin/profile", (req, res) => {
+app.post("/api/admin/profile", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    fs.writeFileSync(
-        path.join(
-            getTenantDir(tenantId),
-            "business.json"
-        ),
-        JSON.stringify(req.body, null, 2)
-    );
+    await setTenantFile(tenantId, "business.json", req.body);
 
     res.json({
         success: true
@@ -914,52 +671,30 @@ app.post("/api/admin/profile", (req, res) => {
 // ADMIN AI BEHAVIOUR
 // ====================================
 
-app.get("/api/admin/behaviour", (req, res) => {
+app.get("/api/admin/behaviour", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const behaviourPath = path.join(
-        getTenantDir(tenantId),
-        "behaviour.json"
-    );
+    const behaviour = await getTenantFile(tenantId, "behaviour.json", {
+        personality: "Professional",
+        responseLength: "Short",
+        emojiUsage: false,
+        salesStyle: "Balanced",
+        humor: false,
+        greeting: "",
+        closing: "",
+        customInstructions: ""
+    });
 
-    if (!fs.existsSync(behaviourPath)) {
-
-        return res.json({
-            personality: "Professional",
-            responseLength: "Short",
-            emojiUsage: false,
-            salesStyle: "Balanced",
-            humor: false,
-            greeting: "",
-            closing: "",
-            customInstructions: ""
-        });
-
-    }
-
-    res.json(
-        JSON.parse(
-            fs.readFileSync(
-                behaviourPath,
-                "utf8"
-            )
-        )
-    );
+    res.json(behaviour);
 
 });
 
-app.post("/api/admin/behaviour", (req, res) => {
+app.post("/api/admin/behaviour", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    fs.writeFileSync(
-        path.join(
-            getTenantDir(tenantId),
-            "behaviour.json"
-        ),
-        JSON.stringify(req.body, null, 2)
-    );
+    await setTenantFile(tenantId, "behaviour.json", req.body);
 
     res.json({
         success: true
@@ -971,36 +706,21 @@ app.post("/api/admin/behaviour", (req, res) => {
 // ADMIN FAQ
 // ====================================
 
-app.get("/api/admin/faq", (req, res) => {
+app.get("/api/admin/faq", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const file = path.join(
-        getTenantDir(tenantId),
-        "faq.json"
-    );
+    const faq = await getTenantFile(tenantId, "faq.json", []);
 
-    if (!fs.existsSync(file)) {
-        fs.writeFileSync(file, JSON.stringify([], null, 2));
-    }
-
-    res.json(
-        JSON.parse(fs.readFileSync(file, "utf8"))
-    );
+    res.json(faq);
 
 });
 
-app.post("/api/admin/faq", (req, res) => {
+app.post("/api/admin/faq", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    fs.writeFileSync(
-        path.join(
-            getTenantDir(tenantId),
-            "faq.json"
-        ),
-        JSON.stringify(req.body, null, 2)
-    );
+    await setTenantFile(tenantId, "faq.json", req.body);
 
     res.json({
         success: true
@@ -1012,28 +732,21 @@ app.post("/api/admin/faq", (req, res) => {
 // ADMIN SERVICES
 // ====================================
 
-app.get("/api/admin/services", (req, res) => {
+app.get("/api/admin/services", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const file = path.join(getTenantDir(tenantId), "services.json");
+    const services = await getTenantFile(tenantId, "services.json", []);
 
-    if (!fs.existsSync(file)) {
-        fs.writeFileSync(file, JSON.stringify([], null, 2));
-    }
-
-    res.json(JSON.parse(fs.readFileSync(file, "utf8")));
+    res.json(services);
 
 });
 
-app.post("/api/admin/services", (req, res) => {
+app.post("/api/admin/services", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    fs.writeFileSync(
-        path.join(getTenantDir(tenantId), "services.json"),
-        JSON.stringify(req.body, null, 2)
-    );
+    await setTenantFile(tenantId, "services.json", req.body);
 
     res.json({ success: true });
 
@@ -1043,28 +756,21 @@ app.post("/api/admin/services", (req, res) => {
 // ADMIN KNOWLEDGE
 // ====================================
 
-app.get("/api/admin/knowledge", (req, res) => {
+app.get("/api/admin/knowledge", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const file = path.join(getTenantDir(tenantId), "knowledge.json");
+    const knowledge = await getTenantFile(tenantId, "knowledge.json", []);
 
-    if (!fs.existsSync(file)) {
-        fs.writeFileSync(file, JSON.stringify([], null, 2));
-    }
-
-    res.json(JSON.parse(fs.readFileSync(file, "utf8")));
+    res.json(knowledge);
 
 });
 
-app.post("/api/admin/knowledge", (req, res) => {
+app.post("/api/admin/knowledge", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    fs.writeFileSync(
-        path.join(getTenantDir(tenantId), "knowledge.json"),
-        JSON.stringify(req.body, null, 2)
-    );
+    await setTenantFile(tenantId, "knowledge.json", req.body);
 
     res.json({ success: true });
 
@@ -1074,38 +780,25 @@ app.post("/api/admin/knowledge", (req, res) => {
 // ADMIN INTEGRATIONS
 // ====================================
 
-app.get("/api/admin/integrations", (req, res) => {
+app.get("/api/admin/integrations", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const file = path.join(getTenantDir(tenantId), "integrations.json");
+    const integrations = await getTenantFile(tenantId, "integrations.json", {
+        enabled: false,
+        provider: "google",
+        calendarId: ""
+    });
 
-    if (!fs.existsSync(file)) {
-
-        const defaults = {
-            enabled: false,
-            provider: "google",
-            calendarId: ""
-        };
-
-        fs.writeFileSync(file, JSON.stringify(defaults, null, 2));
-
-        return res.json(defaults);
-
-    }
-
-    res.json(JSON.parse(fs.readFileSync(file, "utf8")));
+    res.json(integrations);
 
 });
 
-app.post("/api/admin/integrations", (req, res) => {
+app.post("/api/admin/integrations", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    fs.writeFileSync(
-        path.join(getTenantDir(tenantId), "integrations.json"),
-        JSON.stringify(req.body, null, 2)
-    );
+    await setTenantFile(tenantId, "integrations.json", req.body);
 
     res.json({ success: true });
 
@@ -1115,19 +808,19 @@ app.post("/api/admin/integrations", (req, res) => {
 // ADMIN WEBSITE IMPORT
 // ====================================
 
-app.get("/api/admin/import", (req, res) => {
+app.get("/api/admin/import", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const file = path.join(getTenantDir(tenantId), "import.json");
+    const importDoc = await getTenantFile(tenantId, "import.json", null);
 
-    if (!fs.existsSync(file)) {
+    if (!importDoc) {
         return res.json({ exists: false });
     }
 
     res.json({
         exists: true,
-        ...JSON.parse(fs.readFileSync(file, "utf8"))
+        ...importDoc
     });
 
 });
@@ -1148,262 +841,208 @@ app.post("/api/admin/import", async (req, res) => {
 
         console.log(`Starting import for ${tenantId}: ${website}`);
 
-const pages = await crawlWebsite(website);
+        const pages = await crawlWebsite(website);
 
-const imported = await processWebsiteContent(
-    pages
-);
+        const imported = await processWebsiteContent(pages);
 
-// Validate import before touching any client files
+        // Validate import before touching any client data
 
-if (
-    !imported ||
-    typeof imported !== "object" ||
-    !imported.business ||
-    !Array.isArray(imported.services) ||
-    !Array.isArray(imported.faq) ||
-    !Array.isArray(imported.knowledge)
-) {
-    throw new Error("Importer returned invalid data.");
-}
+        if (
+            !imported ||
+            typeof imported !== "object" ||
+            !imported.business ||
+            !Array.isArray(imported.services) ||
+            !Array.isArray(imported.faq) ||
+            !Array.isArray(imported.knowledge)
+        ) {
+            throw new Error("Importer returned invalid data.");
+        }
 
-const tenantDir = getTenantDir(tenantId);
+        // ---------- BUSINESS ----------
 
-// ---------- BUSINESS ----------
+        const existingBusiness = await getTenantFile(tenantId, "business.json", {});
 
-const businessPath = path.join(tenantDir, "business.json");
+        const mergedBusiness = {
+            ...existingBusiness
+        };
 
-const existingBusiness =
-    fs.existsSync(businessPath)
-        ? JSON.parse(fs.readFileSync(businessPath, "utf8"))
-        : {};
+        for (const [key, value] of Object.entries(imported.business)) {
 
-const mergedBusiness = {
-    ...existingBusiness
-};
+            if (
+                value &&
+                String(value).trim() !== ""
+            ) {
+                mergedBusiness[key] = value;
+            }
 
-for (const [key, value] of Object.entries(imported.business)) {
+        }
 
-    if (
-        value &&
-        String(value).trim() !== ""
-    ) {
-        mergedBusiness[key] = value;
-    }
+        await setTenantFile(tenantId, "business.json", mergedBusiness);
 
-}
+        // ---------- SERVICES ----------
 
-fs.writeFileSync(
-    businessPath,
-    JSON.stringify(mergedBusiness, null, 2)
-);
+        const existingServices = await getTenantFile(tenantId, "services.json", []);
 
-// ---------- SERVICES ----------
+        const serviceMap = new Map();
 
-const servicesPath = path.join(
-    tenantDir,
-    "services.json"
-);
+        for (const service of existingServices) {
 
-const existingServices =
-    fs.existsSync(servicesPath)
-        ? JSON.parse(fs.readFileSync(servicesPath, "utf8"))
-        : [];
+            if (!service?.name) continue;
 
-const serviceMap = new Map();
+            serviceMap.set(
+                service.name.trim().toLowerCase(),
+                { ...service }
+            );
 
-// Load existing services first
-for (const service of existingServices) {
+        }
 
-    if (!service?.name) continue;
+        for (const service of imported.services) {
 
-    serviceMap.set(
-        service.name.trim().toLowerCase(),
-        { ...service }
-    );
+            if (!service?.name) continue;
 
-}
+            const key = service.name.trim().toLowerCase();
 
-// Merge imported services
-for (const service of imported.services) {
+            const existing = serviceMap.get(key) || {};
 
-    if (!service?.name) continue;
+            serviceMap.set(key, {
 
-    const key = service.name.trim().toLowerCase();
+                ...existing,
 
-    const existing = serviceMap.get(key) || {};
+                name: service.name || existing.name,
 
-    serviceMap.set(key, {
+                description:
+                    service.description?.trim()
+                        ? service.description
+                        : existing.description,
 
-        ...existing,
+                price:
+                    service.price?.toString().trim()
+                        ? service.price
+                        : existing.price,
 
-        name: service.name || existing.name,
+                monthly:
+                    service.monthly?.toString().trim()
+                        ? service.monthly
+                        : existing.monthly
 
-        description:
-            service.description?.trim()
-                ? service.description
-                : existing.description,
+            });
 
-        price:
-            service.price?.toString().trim()
-                ? service.price
-                : existing.price,
+        }
 
-        monthly:
-            service.monthly?.toString().trim()
-                ? service.monthly
-                : existing.monthly
+        const mergedServices = [...serviceMap.values()];
 
-    });
+        await setTenantFile(tenantId, "services.json", mergedServices);
 
-}
+        // ---------- FAQ ----------
 
-const mergedServices = [...serviceMap.values()];
+        const existingFaq = await getTenantFile(tenantId, "faq.json", []);
 
-fs.writeFileSync(
-    servicesPath,
-    JSON.stringify(mergedServices, null, 2)
-);
+        const faqMap = new Map();
 
-// ---------- FAQ ----------
+        for (const item of existingFaq) {
 
-const faqPath = path.join(
-    tenantDir,
-    "faq.json"
-);
+            if (!item?.question) continue;
 
-const existingFaq =
-    fs.existsSync(faqPath)
-        ? JSON.parse(fs.readFileSync(faqPath, "utf8"))
-        : [];
+            faqMap.set(
+                item.question.trim().toLowerCase(),
+                { ...item }
+            );
 
-const faqMap = new Map();
+        }
 
-// Existing FAQ
-for (const item of existingFaq) {
+        for (const item of imported.faq) {
 
-    if (!item?.question) continue;
+            if (!item?.question) continue;
 
-    faqMap.set(
-        item.question.trim().toLowerCase(),
-        { ...item }
-    );
+            const key = item.question.trim().toLowerCase();
 
-}
+            const existing = faqMap.get(key) || {};
 
-// Imported FAQ
-for (const item of imported.faq) {
+            faqMap.set(key, {
 
-    if (!item?.question) continue;
+                ...existing,
 
-    const key = item.question.trim().toLowerCase();
+                question:
+                    item.question || existing.question,
 
-    const existing = faqMap.get(key) || {};
+                answer:
+                    item.answer?.trim()
+                        ? item.answer
+                        : existing.answer
 
-    faqMap.set(key, {
+            });
 
-        ...existing,
+        }
 
-        question:
-            item.question || existing.question,
+        const mergedFaq = [...faqMap.values()];
 
-        answer:
-            item.answer?.trim()
-                ? item.answer
-                : existing.answer
+        await setTenantFile(tenantId, "faq.json", mergedFaq);
 
-    });
+        // ---------- KNOWLEDGE ----------
 
-}
+        const existingKnowledge = await getTenantFile(tenantId, "knowledge.json", []);
 
-const mergedFaq = [...faqMap.values()];
+        const knowledgeMap = new Map();
 
-fs.writeFileSync(
-    faqPath,
-    JSON.stringify(mergedFaq, null, 2)
-);
+        for (const article of existingKnowledge) {
 
-// ---------- KNOWLEDGE ----------
+            if (!article?.title) continue;
 
-const knowledgePath = path.join(
-    tenantDir,
-    "knowledge.json"
-);
+            knowledgeMap.set(
+                article.title.trim().toLowerCase(),
+                { ...article }
+            );
 
-const existingKnowledge =
-    fs.existsSync(knowledgePath)
-        ? JSON.parse(fs.readFileSync(knowledgePath, "utf8"))
-        : [];
+        }
 
-const knowledgeMap = new Map();
+        for (const article of imported.knowledge) {
 
-// Existing Knowledge
-for (const article of existingKnowledge) {
+            if (!article?.title) continue;
 
-    if (!article?.title) continue;
+            if (typeof article.content !== "string") {
+                article.content = JSON.stringify(article.content ?? "");
+            }
 
-    knowledgeMap.set(
-        article.title.trim().toLowerCase(),
-        { ...article }
-    );
+            if (typeof article.source !== "string") {
+                article.source = "";
+            }
 
-}
+            const key = article.title.trim().toLowerCase();
 
-// Imported Knowledge
-for (const article of imported.knowledge) {
+            const existing = knowledgeMap.get(key) || {};
 
-    if (!article?.title) continue;
+            knowledgeMap.set(key, {
 
-if (typeof article.content !== "string") {
-    article.content = JSON.stringify(article.content ?? "");
-}
+                ...existing,
 
-if (typeof article.source !== "string") {
-    article.source = "";
-}
+                title:
+                    article.title || existing.title,
 
-    const key = article.title.trim().toLowerCase();
+                content:
+                    typeof article.content === "string" &&
+                    article.content.trim()
+                        ? article.content
+                        : existing.content,
 
-    const existing = knowledgeMap.get(key) || {};
+                source:
+                    typeof article.source === "string" &&
+                    article.source.trim()
+                        ? article.source
+                        : existing.source
 
-    knowledgeMap.set(key, {
+            });
 
-        ...existing,
+        }
 
-        title:
-            article.title || existing.title,
+        const mergedKnowledge = [...knowledgeMap.values()];
 
-content:
-    typeof article.content === "string" &&
-    article.content.trim()
-        ? article.content
-        : existing.content,
+        await setTenantFile(tenantId, "knowledge.json", mergedKnowledge);
 
-source:
-    typeof article.source === "string" &&
-    article.source.trim()
-        ? article.source
-        : existing.source
-
-    });
-
-}
-
-const mergedKnowledge = [...knowledgeMap.values()];
-
-fs.writeFileSync(
-    knowledgePath,
-    JSON.stringify(mergedKnowledge, null, 2)
-);
-
-        fs.writeFileSync(
-            path.join(getTenantDir(tenantId), "import.json"),
-            JSON.stringify({
-                website,
-                status: "Imported",
-                createdAt: new Date().toISOString()
-            }, null, 2)
-        );
+        await setTenantFile(tenantId, "import.json", {
+            website,
+            status: "Imported",
+            createdAt: new Date().toISOString()
+        });
 
         res.json({
             success: true
@@ -1421,15 +1060,11 @@ fs.writeFileSync(
 
 });
 
-app.delete("/api/admin/import", (req, res) => {
+app.delete("/api/admin/import", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const file = path.join(getTenantDir(tenantId), "import.json");
-
-    if (fs.existsSync(file)) {
-        fs.unlinkSync(file);
-    }
+    await deleteTenantFile(tenantId, "import.json");
 
     res.json({ success: true });
 
@@ -1450,30 +1085,13 @@ app.get("/api/admin/calendar/connect", (req, res) => {
 
 });
 
-app.get("/api/admin/calendar/list", (req, res) => {
+app.get("/api/admin/calendar/list", async (req, res) => {
 
     const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const integrationsPath = path.join(
-        getTenantDir(tenantId),
-        "integrations.json"
-    );
+    const settings = await getTenantFile(tenantId, "integrations.json", null);
 
-    let connected = false;
-
-    if (fs.existsSync(integrationsPath)) {
-
-        try {
-
-            const settings = JSON.parse(
-                fs.readFileSync(integrationsPath, "utf8")
-            );
-
-            connected = settings.enabled === true;
-
-        } catch {}
-
-    }
+    const connected = settings?.enabled === true;
 
     res.json({
         connected,
@@ -1504,20 +1122,14 @@ app.get("/api/admin/calendar/oauth", (req, res) => {
 // TELEMETRY CLIENT SESSIONS
 // ====================================
 
-app.get('/api/clients', (req, res) => {
+app.get('/api/clients', async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
 
-    const vaultPath = getVaultPath(tenantId);
+    let sessionVault = await getTenantFile(tenantId, "vault.json", null);
 
-    let sessionVault = fs.existsSync(vaultPath)
-        ? JSON.parse(fs.readFileSync(vaultPath, "utf8"))
-        : INITIAL_VAULT;
-
-    if (!fs.existsSync(vaultPath)) {
-        fs.writeFileSync(
-            vaultPath,
-            JSON.stringify(sessionVault, null, 2)
-        );
+    if (!sessionVault) {
+        sessionVault = INITIAL_VAULT;
+        await setTenantFile(tenantId, "vault.json", sessionVault);
     }
 
     res.json(
@@ -1532,7 +1144,8 @@ app.get('/api/clients', (req, res) => {
     );
 });
 
-app.post('/api/webhook/whatsapp', async (req, res) => {    console.log(`📥 [TELEMETRY NODE]: Incoming packet: ${JSON.stringify(req.body)}`);
+app.post('/api/webhook/whatsapp', async (req, res) => {
+    console.log(`📥 [TELEMETRY NODE]: Incoming packet: ${JSON.stringify(req.body)}`);
     res.sendStatus(200);
 });
 
@@ -1541,292 +1154,264 @@ app.post('/api/webhook', async (req, res) => {
     res.status(200).json({ status: "success", message: "Payload received by The Chain" });
 });
 
-app.post('/api/override', (req, res) => {
+app.post('/api/override', async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
-    const vaultPath = getVaultPath(tenantId);
-    const sessionVault = JSON.parse(fs.readFileSync(vaultPath, "utf8"));
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
     const { sessionId, mode } = req.body;
     if (sessionVault[sessionId]) {
         sessionVault[sessionId].status = mode === 'HUMAN' ? 'Manual Override' : 'Active';
-        fs.writeFileSync(vaultPath, JSON.stringify(sessionVault, null, 2));
+        await setTenantFile(tenantId, "vault.json", sessionVault);
         res.json({ success: true, status: sessionVault[sessionId].status });
-    } else { res.status(400).json({ error: "Session missing." }); }
+    } else {
+        res.status(400).json({ error: "Session missing." });
+    }
 });
 
 app.post('/api/chat', async (req, res) => {
-console.log("TENANT:", req.headers['x-tenant-id']);
-  await simulateThinking();
-  const tenantId = req.headers['x-tenant-id'] || 'default';
-  
+    console.log("TENANT:", req.headers['x-tenant-id']);
+    await simulateThinking();
+    const tenantId = req.headers['x-tenant-id'] || 'default';
 
-  const vaultPath = getVaultPath(tenantId);
-  if (!fs.existsSync(vaultPath)) fs.writeFileSync(vaultPath, JSON.stringify(INITIAL_VAULT, null, 2));
-  
-const sessionVault = JSON.parse(fs.readFileSync(vaultPath, "utf8"));
+    let sessionVault = await getTenantFile(tenantId, "vault.json", null);
+    if (!sessionVault) sessionVault = INITIAL_VAULT;
 
-const { sessionId, message } = req.body;
-const lowerMessage = message.toLowerCase();
+    const { sessionId, message } = req.body;
+    const lowerMessage = message.toLowerCase();
 
-// Automatically create a visitor session
-if (!sessionVault[sessionId]) {
+    // Automatically create a visitor session
+    if (!sessionVault[sessionId]) {
 
-sessionVault[sessionId] = {
-    id: sessionId,
-    name: "Website Visitor",
-    label: "Website Chat",
-    price: 0,
-    status: "Active",
+        sessionVault[sessionId] = {
+            id: sessionId,
+            name: "Website Visitor",
+            label: "Website Chat",
+            price: 0,
+            status: "Active",
 
-    lead: {
-        fullName: "",
-        phone: "",
-        email: "",
-        service: "",
-        preferredDate: "",
-        preferredTime: ""
-    },
+            lead: {
+                fullName: "",
+                phone: "",
+                email: "",
+                service: "",
+                preferredDate: "",
+                preferredTime: ""
+            },
 
-    conversationState: "DISCUSSION",
+            conversationState: "DISCUSSION",
 
-    history: [],
+            history: [],
 
-    analysis: {
-        buyerProfile: "Unknown",
-        objectionType: "Unknown",
-        concessionStep: "None"
-    }
-};
-    fs.writeFileSync(
-        vaultPath,
-        JSON.stringify(sessionVault, null, 2)
-    );
-
-    console.log("🆕 Created visitor session:", sessionId);
-}
-
-const session = sessionVault[sessionId];
-const lastUser = message.toLowerCase();
-
-if (lastUser.includes("book")) {
-    session.conversationState = "BOOKING";
-}
-else if (
-    lastUser.includes("price") ||
-    lastUser.includes("cost") ||
-    lastUser.includes("how much")
-) {
-    session.conversationState = "PRICING";
-}
-else {
-    session.conversationState = "DISCUSSION";
-}
-// ================================
-// Automatic Lead Extraction v4.2.1
-// ================================
-
-if (!session.lead) {
-    session.lead = {
-        fullName: "",
-        phone: "",
-        email: "",
-        service: "",
-        preferredDate: "",
-        preferredTime: ""
-    };
-}
-
-// Email
-const emailMatch = message.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-if (emailMatch) {
-    session.lead.email = emailMatch[0];
-}
-
-// Phone
-const phoneMatch = message.match(/\+?[0-9][0-9\s\-]{7,}/);
-if (phoneMatch) {
-    session.lead.phone = phoneMatch[0];
-}
-
-// Full Name
-const nameMatch = message.match(
-    /(?:my name is|i am|i'm)\s+([A-Za-z]+(?:\s+[A-Za-z]+)+)/i
-);
-
-if (nameMatch) {
-    session.lead.fullName = nameMatch[1];
-}
-
-// Services
-const servicesPath = path.join(
-    getTenantDir(tenantId),
-    "services.json"
-);
-
-let availableServices = [];
-
-if (fs.existsSync(servicesPath)) {
-
-    availableServices = JSON.parse(
-        fs.readFileSync(
-            servicesPath,
-            "utf8"
-        )
-    );
-
-}
-
-for (const service of availableServices) {
-
-    const serviceName = service.name.toLowerCase();
-
-    if (lowerMessage.includes(serviceName)) {
-
-        session.lead.service = service.name;
-        break;
-
-    }
-
-    // Common aliases
-    if (
-        serviceName.includes("ai negotiator") &&
-        (
-            lowerMessage.includes("demo") ||
-            lowerMessage.includes("negotiator") ||
-            lowerMessage.includes("receptionist") ||
-            lowerMessage.includes("ai receptionist") ||
-            lowerMessage.includes("sales agent") ||
-            lowerMessage.includes("val")
-        )
-    ) {
-
-        session.lead.service = service.name;
-        break;
-
-    }
-
-}
-// Weekdays
-const weekdays = [
-    "monday",
-    "tuesday",
-    "wednesday",
-    "thursday",
-    "friday",
-    "saturday",
-    "sunday"
-];
-
-for (const day of weekdays) {
-    if (lowerMessage.includes(day)) {
-        session.lead.preferredDate = day;
-        break;
-    }
-}
-// Time
-const timeMatch = message.match(
-    /\b([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?\b/i
-);
-
-if (timeMatch) {
-    session.lead.preferredTime = timeMatch[0];
-}
-
-// Always ensure the current business profile is used
-if (
-    session.history.length === 0 ||
-    session.history[0].role !== "system"
-) {
-    session.history = [
-        {
-            role: "system",
-            content: buildSystemPrompt(
-                tenantId,
-                message
-            )
-        }
-    ];
-} else {
-    session.history[0].content = buildSystemPrompt(
-        tenantId,
-        message
-    );
-}
-
-if (session.status === 'Manual Override') {
-    if (TRAINING_ENABLED === true) {
-        const trainingEntry = {
-            previousContext: session.history.slice(-3),
-            humanCorrection: message,
-            timestamp: new Date().toISOString()
+            analysis: {
+                buyerProfile: "Unknown",
+                objectionType: "Unknown",
+                concessionStep: "None"
+            }
         };
 
-        fs.appendFileSync(
-            path.join(
-                getTenantDir(tenantId),
-                "training_data.json"
-            ),
-            JSON.stringify(trainingEntry) + "\n"
+        console.log("🆕 Created visitor session:", sessionId);
+    }
+
+    const session = sessionVault[sessionId];
+    const lastUser = message.toLowerCase();
+
+    if (lastUser.includes("book")) {
+        session.conversationState = "BOOKING";
+    }
+    else if (
+        lastUser.includes("price") ||
+        lastUser.includes("cost") ||
+        lastUser.includes("how much")
+    ) {
+        session.conversationState = "PRICING";
+    }
+    else {
+        session.conversationState = "DISCUSSION";
+    }
+
+    // ================================
+    // Automatic Lead Extraction v4.2.1
+    // ================================
+
+    if (!session.lead) {
+        session.lead = {
+            fullName: "",
+            phone: "",
+            email: "",
+            service: "",
+            preferredDate: "",
+            preferredTime: ""
+        };
+    }
+
+    // Email
+    const emailMatch = message.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    if (emailMatch) {
+        session.lead.email = emailMatch[0];
+    }
+
+    // Phone
+    const phoneMatch = message.match(/\+?[0-9][0-9\s\-]{7,}/);
+    if (phoneMatch) {
+        session.lead.phone = phoneMatch[0];
+    }
+
+    // Full Name
+    const nameMatch = message.match(
+        /(?:my name is|i am|i'm)\s+([A-Za-z]+(?:\s+[A-Za-z]+)+)/i
+    );
+
+    if (nameMatch) {
+        session.lead.fullName = nameMatch[1];
+    }
+
+    // Services
+    const availableServices = await getTenantFile(tenantId, "services.json", []);
+
+    for (const service of availableServices) {
+
+        const serviceName = service.name.toLowerCase();
+
+        if (lowerMessage.includes(serviceName)) {
+
+            session.lead.service = service.name;
+            break;
+
+        }
+
+        // Common aliases
+        if (
+            serviceName.includes("ai negotiator") &&
+            (
+                lowerMessage.includes("demo") ||
+                lowerMessage.includes("negotiator") ||
+                lowerMessage.includes("receptionist") ||
+                lowerMessage.includes("ai receptionist") ||
+                lowerMessage.includes("sales agent") ||
+                lowerMessage.includes("val")
+            )
+        ) {
+
+            session.lead.service = service.name;
+            break;
+
+        }
+
+    }
+
+    // Weekdays
+    const weekdays = [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
+    ];
+
+    for (const day of weekdays) {
+        if (lowerMessage.includes(day)) {
+            session.lead.preferredDate = day;
+            break;
+        }
+    }
+
+    // Time
+    const timeMatch = message.match(
+        /\b([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?\b/i
+    );
+
+    if (timeMatch) {
+        session.lead.preferredTime = timeMatch[0];
+    }
+
+    // Always ensure the current business profile is used
+    if (
+        session.history.length === 0 ||
+        session.history[0].role !== "system"
+    ) {
+        session.history = [
+            {
+                role: "system",
+                content: await buildSystemPrompt(
+                    tenantId,
+                    message
+                )
+            }
+        ];
+    } else {
+        session.history[0].content = await buildSystemPrompt(
+            tenantId,
+            message
         );
+    }
+
+    if (session.status === 'Manual Override') {
+        if (TRAINING_ENABLED === true) {
+            const trainingEntry = {
+                previousContext: session.history.slice(-3),
+                humanCorrection: message,
+                timestamp: new Date().toISOString()
+            };
+
+            await appendTenantLog(tenantId, "training_data.json", trainingEntry);
+        }
+
+        session.history.push({
+            role: 'user',
+            content: `[HUMAN]: ${message}`
+        });
+
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+
+        return res.json({
+            response: "",
+            currentPrice: session.price,
+            status: session.status,
+            analysis: session.analysis
+        });
     }
 
     session.history.push({
         role: 'user',
-        content: `[HUMAN]: ${message}`
+        content: message
     });
 
-    fs.writeFileSync(
-        vaultPath,
-        JSON.stringify(sessionVault, null, 2)
-    );
+    try {
 
-    return res.json({
-        response: "",
-        currentPrice: session.price,
-        status: session.status,
-        analysis: session.analysis
-    });
-}
+        // ================================
+        // Booking Progress Tracker
+        // ================================
 
-session.history.push({
-    role: 'user',
-    content: message
-});
+        session.nextQuestion = null;
 
-try {
+        if (session.conversationState === "BOOKING") {
 
-// ================================
-// Booking Progress Tracker
-// ================================
+            if (!session.lead.service)
+                session.nextQuestion = "service";
 
-session.nextQuestion = null;
+            else if (!session.lead.preferredDate)
+                session.nextQuestion = "preferredDate";
 
-if (session.conversationState === "BOOKING") {
+            else if (!session.lead.preferredTime)
+                session.nextQuestion = "preferredTime";
 
-if (!session.lead.service)
-    session.nextQuestion = "service";
+            else if (!session.lead.fullName)
+                session.nextQuestion = "fullName";
 
-else if (!session.lead.preferredDate)
-    session.nextQuestion = "preferredDate";
+            else if (!session.lead.phone)
+                session.nextQuestion = "phone";
 
-else if (!session.lead.preferredTime)
-    session.nextQuestion = "preferredTime";
+            else if (!session.lead.email)
+                session.nextQuestion = "email";
 
-else if (!session.lead.fullName)
-    session.nextQuestion = "fullName";
+            else
+                session.nextQuestion = "complete";
+        }
 
-else if (!session.lead.phone)
-    session.nextQuestion = "phone";
-
-else if (!session.lead.email)
-    session.nextQuestion = "email";
-
-else
-    session.nextQuestion = "complete";
-}
-
-const bookingSystemMessage = {
-    role: "system",
-content: `Current conversation state: BOOKING
+        const bookingSystemMessage = {
+            role: "system",
+            content: `Current conversation state: BOOKING
 
 You are currently helping a visitor complete a booking.
 
@@ -1874,110 +1459,108 @@ After every required field has been collected:
 • Never claim the appointment has already been booked.
 • Never claim that an email, SMS, WhatsApp message or calendar invitation has been sent unless this system has actually sent it.
 • Only provide a booking link if one exists in the Business Profile.`
-};
+        };
 
-const messagesForGroq =
-    session.conversationState === "BOOKING"
-        ? [...session.history, bookingSystemMessage]
-        : session.history;
+        const messagesForGroq =
+            session.conversationState === "BOOKING"
+                ? [...session.history, bookingSystemMessage]
+                : session.history;
 
-const response = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
-    messages: messagesForGroq,
-    temperature: 0.5
-});
+        const response = await groq.chat.completions.create({
+            model: "llama-3.1-8b-instant",
+            messages: messagesForGroq,
+            temperature: 0.5
+        });
 
-let fullReply = response.choices[0].message.content;
+        let fullReply = response.choices[0].message.content;
 
-console.log("========== AI REPLY ==========");
-console.log(fullReply);
-console.log("==============================");
-    
-const metaMatch = fullReply.match(
-    /\[\[\s*PROFILE:\s*(.*?)\s*\|\s*OBJECTION:\s*(.*?)\s*\|\s*CONCESSION:\s*(.*?)\s*\]\]/
-);
+        console.log("========== AI REPLY ==========");
+        console.log(fullReply);
+        console.log("==============================");
 
-if (metaMatch) {
-    session.analysis = {
-        buyerProfile: metaMatch[1],
-        objectionType: metaMatch[2],
-        concessionStep: metaMatch[3]
-    };
-}
+        const metaMatch = fullReply.match(
+            /\[\[\s*PROFILE:\s*(.*?)\s*\|\s*OBJECTION:\s*(.*?)\s*\|\s*CONCESSION:\s*(.*?)\s*\]\]/
+        );
 
+        if (metaMatch) {
+            session.analysis = {
+                buyerProfile: metaMatch[1],
+                objectionType: metaMatch[2],
+                concessionStep: metaMatch[3]
+            };
+        }
 
-let cleanReply = fullReply
-    .replace(/\[\[.*?\]\]/g, "")
-    .replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]/g, "")
-    .trim();
+        let cleanReply = fullReply
+            .replace(/\[\[.*?\]\]/g, "")
+            .replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]/g, "")
+            .trim();
 
-const bookingComplete =
-    session.lead.service &&
-    session.lead.preferredDate &&
-    session.lead.preferredTime &&
-    session.lead.fullName &&
-    session.lead.phone &&
-    session.lead.email;
+        const bookingComplete =
+            session.lead.service &&
+            session.lead.preferredDate &&
+            session.lead.preferredTime &&
+            session.lead.fullName &&
+            session.lead.phone &&
+            session.lead.email;
 
-if (!bookingComplete) {
-    cleanReply = cleanReply
-        .replace(/booking\s+is\s+confirmed/gi, "booking is almost complete")
-        .replace(/confirmed/gi, "almost complete");
-}
+        if (!bookingComplete) {
+            cleanReply = cleanReply
+                .replace(/booking\s+is\s+confirmed/gi, "booking is almost complete")
+                .replace(/confirmed/gi, "almost complete");
+        }
 
-if (bookingComplete && !session.lead.saved) {
+        if (bookingComplete && !session.lead.saved) {
 
-    session.lead.saved = true;
+            session.lead.saved = true;
 
-    fs.appendFileSync(
-        path.join(getTenantDir(tenantId), "leads.json"),
-        JSON.stringify({
-            timestamp: new Date().toISOString(),
-            ...session.lead
-        }) + "\n"
-    );
-}
+            await appendTenantLog(tenantId, "leads.json", {
+                timestamp: new Date().toISOString(),
+                ...session.lead
+            });
+        }
 
-// Hard response limiter
-const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
+        // Hard response limiter
+        const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
 
-if (sentences && sentences.length > 3) {
-    cleanReply = sentences.slice(0, 3).join(" ").trim();
-}
+        if (sentences && sentences.length > 3) {
+            cleanReply = sentences.slice(0, 3).join(" ").trim();
+        }
 
-    if (session.price < CONTRACT_RULES.absoluteFloor) sendAlert(tenantId, `Price below floor!`);
-    
-    if (fullReply.includes("[DEAL_AGREED]")) {
-        const num = fullReply.match(/\d+/);
-        if (num) session.price = Math.max(parseInt(num[0]), CONTRACT_RULES.absoluteFloor);
+        if (session.price < CONTRACT_RULES.absoluteFloor) sendAlert(tenantId, `Price below floor!`);
+
+        if (fullReply.includes("[DEAL_AGREED]")) {
+            const num = fullReply.match(/\d+/);
+            if (num) session.price = Math.max(parseInt(num[0]), CONTRACT_RULES.absoluteFloor);
+        }
+
+        if (fullReply.includes("[BOOKING_CONFIRMED]")) {
+            session.status = "Committed";
+            await logDealSuccess(tenantId, session);
+        }
+
+        session.history.push({
+            role: "assistant",
+            content: cleanReply
+        });
+
+        // Keep the system prompt + only the last 3 user/assistant exchanges
+        const systemPrompt = session.history[0];
+
+        const recentHistory = session.history.slice(-6);
+
+        session.history = [
+            systemPrompt,
+            ...recentHistory
+        ];
+
+        await logAudit(tenantId, sessionId, message, fullReply, session.analysis);
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+
+        res.json({ response: cleanReply, currentPrice: session.price, status: session.status, analysis: session.analysis });
+    } catch (error) {
+        sendAlert(tenantId, `CRITICAL FAILURE: ${error.message}`);
+        res.status(500).json({ response: "I'm recalibrating..." });
     }
-
-    if (fullReply.includes("[BOOKING_CONFIRMED]")) {
-        session.status = "Committed";
-        logDealSuccess(tenantId, session);
-    }
-
-session.history.push({
-    role: "assistant",
-    content: cleanReply
-});
-
-// Keep the system prompt + only the last 3 user/assistant exchanges
-const systemPrompt = session.history[0];
-
-const recentHistory = session.history.slice(-6);
-
-session.history = [
-    systemPrompt,
-    ...recentHistory
-];    
-    logAudit(tenantId, sessionId, message, fullReply, session.analysis);
-    fs.writeFileSync(vaultPath, JSON.stringify(sessionVault, null, 2));
-    res.json({ response: cleanReply, currentPrice: session.price, status: session.status, analysis: session.analysis });
-  } catch (error) {
-    sendAlert(tenantId, `CRITICAL FAILURE: ${error.message}`);
-    res.status(500).json({ response: "I'm recalibrating..." });
-  }
 });
 
 // ====================================
@@ -1985,38 +1568,18 @@ session.history = [
 // Runs every night at 23:59
 // ====================================
 
-cron.schedule("59 23 * * *", () => {
+cron.schedule("59 23 * * *", async () => {
 
     console.log("Generating nightly report...");
 
-const clientsDir = path.dirname(getTenantDir("default"));
-
-    if (!fs.existsSync(clientsDir))
-        return;
-
-    const tenantDirs = fs.readdirSync(clientsDir);
+    const tenantIds = await listTenantIds();
 
     let totalDeals = 0;
 
-    tenantDirs.forEach((tenantId) => {
-
-        const dealPath = path.join(
-            clientsDir,
-            tenantId,
-            "deals.json"
-        );
-
-        if (fs.existsSync(dealPath)) {
-
-            totalDeals += fs
-                .readFileSync(dealPath, "utf8")
-                .split("\n")
-                .filter(Boolean)
-                .length;
-
-        }
-
-    });
+    for (const tenantId of tenantIds) {
+        const deals = await getTenantLog(tenantId, "deals.json");
+        totalDeals += deals.length;
+    }
 
     const message =
         `📈 NIGHTLY REPORT: ${totalDeals} total deals closed across all businesses.`;
@@ -2028,7 +1591,6 @@ const clientsDir = path.dirname(getTenantDir("default"));
 
 });
 
-
 // ====================================
 // Refresh client calendars every 10 minutes
 // ====================================
@@ -2039,18 +1601,9 @@ cron.schedule("*/10 * * * *", async () => {
 
         console.log("Refreshing client calendars...");
 
-const clientsRoot = path.dirname(getTenantDir("default"));
+        const tenantIds = await listTenantIds();
 
-        if (!fs.existsSync(clientsRoot)) {
-            return;
-        }
-
-        const tenants = fs
-            .readdirSync(clientsRoot, { withFileTypes: true })
-            .filter(dir => dir.isDirectory())
-            .map(dir => dir.name);
-
-        for (const tenantId of tenants) {
+        for (const tenantId of tenantIds) {
             await updateCalendarSync(tenantId);
         }
 
@@ -2062,6 +1615,16 @@ const clientsRoot = path.dirname(getTenantDir("default"));
 
 });
 
-app.listen(PORT, () => {
-    console.log("🚀 BUILD CHECK 2026-07-18 16:45");
-});
+// CHANGED: connect to MongoDB first, THEN start listening for requests.
+// If the database connection fails, the server won't start at all — better
+// to fail loudly than to silently run with no working storage.
+connectDB()
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`🚀 ENTERPRISE ENGINE LIVE (MongoDB-backed)`);
+        });
+    })
+    .catch((err) => {
+        console.error("Failed to connect to MongoDB. Server not started.", err);
+        process.exit(1);
+    });

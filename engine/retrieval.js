@@ -1,5 +1,7 @@
-const fs = require("fs");
-const path = require("path");
+// CHANGED: this file no longer reads files from disk itself.
+// Whoever calls it now passes in the already-loaded services/faq/knowledge
+// arrays (loaded from MongoDB by index.js). This file only scores and ranks —
+// it never needs to know where the data came from.
 
 const SYNONYMS = {
     price: [
@@ -101,8 +103,11 @@ function score(text, query) {
 
 }
 
+// CHANGED: takes services/faq/knowledge arrays directly instead of a tenantDir path
 function retrieveRelevantKnowledge({
-    tenantDir,
+    services = [],
+    faq = [],
+    knowledge = [],
     message,
     limit = 5
 }) {
@@ -111,7 +116,14 @@ function retrieveRelevantKnowledge({
 
     const lower = message.toLowerCase();
 
-    let files = [
+    // CHANGED: maps the old filenames to the in-memory arrays passed in
+    const sources = {
+        "services.json": services,
+        "faq.json": faq,
+        "knowledge.json": knowledge
+    };
+
+    let fileOrder = [
         "services.json",
         "faq.json",
         "knowledge.json"
@@ -131,7 +143,7 @@ function retrieveRelevantKnowledge({
 
     ) {
 
-        files = [
+        fileOrder = [
             "services.json",
             "faq.json",
             "knowledge.json"
@@ -150,7 +162,7 @@ function retrieveRelevantKnowledge({
 
     ) {
 
-        files = [
+        fileOrder = [
             "faq.json",
             "services.json",
             "knowledge.json"
@@ -171,7 +183,7 @@ function retrieveRelevantKnowledge({
 
     ) {
 
-        files = [
+        fileOrder = [
             "knowledge.json",
             "faq.json",
             "services.json"
@@ -179,32 +191,9 @@ function retrieveRelevantKnowledge({
 
     }
 
-    for (const file of files) {
+    for (const file of fileOrder) {
 
-        const filePath = path.join(
-            tenantDir,
-            file
-        );
-
-        if (!fs.existsSync(filePath))
-            continue;
-
-        let data = [];
-
-        try {
-
-            data = JSON.parse(
-                fs.readFileSync(
-                    filePath,
-                    "utf8"
-                )
-            );
-
-        } catch {
-
-            continue;
-
-        }
+        const data = sources[file] || [];
 
         for (const item of data) {
 
