@@ -14,6 +14,9 @@
   
   const primaryColor = script.dataset.primaryColor?.trim() || "";
   const textColor = script.dataset.textColor?.trim() || "";
+  // CHANGED: two new attributes for the whole-widget background, independent of primary/text above
+  const panelBg = script.dataset.panelBg?.trim() || "";
+  const panelText = script.dataset.panelText?.trim() || "";
 
   const frameUrl = new URL("/deploy/", host);
   frameUrl.searchParams.set("tenant", tenant);
@@ -22,6 +25,9 @@
   
   if (primaryColor) frameUrl.searchParams.set("primary", primaryColor);
   if (textColor) frameUrl.searchParams.set("text", textColor);
+  // CHANGED: forward the new panel background/text params to the iframe, same pattern as above
+  if (panelBg) frameUrl.searchParams.set("panelBg", panelBg);
+  if (panelText) frameUrl.searchParams.set("panelText", panelText);
 
   const frame = document.createElement("iframe");
   frame.src = frameUrl.toString();

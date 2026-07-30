@@ -8,8 +8,10 @@
     :root {
       font-family: Arial, sans-serif;
       color: #f8fafc;
-      --chat-primary: #22d3ee;
-      --chat-text: #042f36;
+      --chat-primary: #22d3ee;   /* message bubble / button background */
+      --chat-text: #042f36;      /* text on top of --chat-primary */
+      --chat-panel-bg: #0b1118;  /* CHANGED: whole widget box background, now independent of --chat-primary */
+      --chat-panel-text: #f8fafc; /* CHANGED: title/borders/New Chat/close/"Online now", contrasts against --chat-panel-bg, not --chat-primary */
     }
     * {
       box-sizing: border-box;
@@ -45,10 +47,10 @@
       display: none;
       width: 374px;
       height: 590px;
-      overflow: hidden; /* CHANGED: clips header corners inside the rounded panel so nothing bleeds onto the page behind it */
-      border: 1px solid color-mix(in srgb, var(--chat-primary) 30%, transparent); /* CHANGED: was fixed cyan */
+      overflow: hidden;
+      border: 1px solid color-mix(in srgb, var(--chat-panel-text) 25%, transparent); /* CHANGED: was tied to primary, now to panel-text so it stays visible against panel-bg regardless of primary */
       border-radius: 20px;
-      background: #0b1118;
+      background: var(--chat-panel-bg); /* CHANGED: was hardcoded #0b1118 */
       box-shadow: none;
     }
     header {
@@ -56,16 +58,16 @@
       align-items: center;
       justify-content: space-between;
       padding: 17px;
-      border-bottom: 1px solid color-mix(in srgb, var(--chat-primary) 15%, transparent); /* CHANGED: was fixed cyan */
+      border-bottom: 1px solid color-mix(in srgb, var(--chat-panel-text) 15%, transparent); /* CHANGED */
     }
     h1 {
       margin: 0;
       font-size: 18px;
-      color: #f8fafc; /* CHANGED: explicit color so "all: initial" on #app can't strip it */
+      color: var(--chat-panel-text); /* CHANGED: was hardcoded white, now follows panel-text so it works on light panels too */
     }
     header p {
       margin: 4px 0 0;
-      color: var(--chat-primary); /* CHANGED: was fixed cyan */
+      color: color-mix(in srgb, var(--chat-panel-text) 75%, var(--chat-primary) 25%); /* CHANGED: was fixed cyan, now a soft tint of panel-text */
       font-size: 13px;
     }
     .header-actions {
@@ -74,21 +76,21 @@
       gap: 10px;
     }
     #newchat {
-      border: 1px solid var(--chat-primary); /* CHANGED: was fixed cyan */
+      border: 1px solid color-mix(in srgb, var(--chat-panel-text) 40%, transparent); /* CHANGED: was tied to primary */
       background: transparent;
-      color: var(--chat-primary); /* CHANGED: was fixed cyan */
+      color: var(--chat-panel-text); /* CHANGED: was tied to primary */
       font-size: 12px;
       padding: 5px 9px;
       border-radius: 8px;
       cursor: pointer;
     }
     #newchat:hover {
-      background: color-mix(in srgb, var(--chat-primary) 15%, transparent); /* CHANGED: was fixed cyan */
+      background: color-mix(in srgb, var(--chat-panel-text) 12%, transparent); /* CHANGED */
     }
     #close {
       border: 0;
       background: transparent;
-      color: var(--chat-primary); /* CHANGED: was fixed cyan */
+      color: var(--chat-panel-text); /* CHANGED: was tied to primary */
       font-size: 23px;
       cursor: pointer;
     }
@@ -113,22 +115,22 @@
     }
     .user {
       margin-left: auto;
-      background: #26323d;
-      color: #ffffff !important;
+      background: color-mix(in srgb, var(--chat-panel-text) 18%, var(--chat-panel-bg) 82%); /* CHANGED: was hardcoded #26323d, now derives from panel colors so it fits any theme */
+      color: var(--chat-panel-text); /* CHANGED: was hardcoded white */
     }
     form {
       display: flex;
       gap: 8px;
       padding: 13px;
-      border-top: 1px solid color-mix(in srgb, var(--chat-primary) 15%, transparent); /* CHANGED: was fixed cyan */
+      border-top: 1px solid color-mix(in srgb, var(--chat-panel-text) 15%, transparent); /* CHANGED */
     }
     input {
       flex: 1;
       min-width: 0;
-      border: 1px solid color-mix(in srgb, var(--chat-primary) 30%, transparent); /* CHANGED: was fixed cyan */
+      border: 1px solid color-mix(in srgb, var(--chat-panel-text) 25%, transparent); /* CHANGED */
       border-radius: 10px;
-      background: #05070a;
-      color: #ffffff !important;
+      background: color-mix(in srgb, var(--chat-panel-bg) 85%, black 15%); /* CHANGED: was hardcoded #05070a, now a shade of panel-bg */
+      color: var(--chat-panel-text); /* CHANGED: was hardcoded white */
       outline: none;
       padding: 11px;
     }
@@ -136,7 +138,7 @@
       border-color: var(--chat-primary);
     }
     input::placeholder {
-      color: #94a3b8;
+      color: color-mix(in srgb, var(--chat-panel-text) 55%, transparent); /* CHANGED: was hardcoded #94a3b8 */
     }
     #send {
       border: 0;
@@ -182,6 +184,8 @@
             label = params.get("label") || "Chat with us",
             customPrimary = params.get("primary"),
             customText = params.get("text"),
+            customPanelBg = params.get("panelBg"),
+            customPanelText = params.get("panelText"),
             valid = /^[a-z0-9_-]{1,80}$/i.test(tenant),
             panel = document.querySelector("#panel"),
             open = document.querySelector("#open"),
@@ -192,7 +196,6 @@
             send = document.querySelector("#send"),
             messages = document.querySelector("#messages");
 
-      // ---- CHANGED: color handling now auto-picks a readable text color ----
       // Validates that a string is a real #hex color before trusting it.
       const isHex = (value) => /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(value || "");
 
@@ -208,10 +211,9 @@
         return lum > 0.55 ? "#0f172a" : "#ffffff";
       };
 
+      // ---- Bubble/button color: --chat-primary + --chat-text ----
       if (customPrimary && isHex(customPrimary)) {
         document.documentElement.style.setProperty("--chat-primary", customPrimary);
-        // If a text color was explicitly provided, honor it.
-        // Otherwise, auto-derive one that will always be legible against the primary color.
         document.documentElement.style.setProperty(
           "--chat-text",
           (customText && isHex(customText)) ? customText : contrastFor(customPrimary)
@@ -219,11 +221,24 @@
       } else if (customText && isHex(customText)) {
         document.documentElement.style.setProperty("--chat-text", customText);
       }
-      // ---- END CHANGED BLOCK ----
+
+      // ---- NEW: whole-widget background color: --chat-panel-bg + --chat-panel-text ----
+      // This is fully independent from the primary/bubble color above, so setting
+      // one never accidentally breaks contrast on the other.
+      if (customPanelBg && isHex(customPanelBg)) {
+        document.documentElement.style.setProperty("--chat-panel-bg", customPanelBg);
+        document.documentElement.style.setProperty(
+          "--chat-panel-text",
+          (customPanelText && isHex(customPanelText)) ? customPanelText : contrastFor(customPanelBg)
+        );
+      } else if (customPanelText && isHex(customPanelText)) {
+        document.documentElement.style.setProperty("--chat-panel-text", customPanelText);
+      }
+      // ---- END COLOR BLOCK ----
 
       document.querySelector("#title").textContent = label;
 
-      // ---- NEW: persistent session id + persistent message history ----
+      // ---- Persistent session id + persistent message history ----
       const sessionKey = "the-chain-widget:" + tenant;
       const historyKey = "the-chain-widget-history:" + tenant;
 
@@ -246,7 +261,6 @@
       };
 
       let history = loadHistory();
-      // ---- END NEW BLOCK ----
 
       const tell = isOpen => parent.postMessage({ source: "the-chain-deploy-widget", open: isOpen }, "*");
 
@@ -291,7 +305,7 @@
         return;
       }
 
-      // ---- NEW: restore prior conversation instead of always greeting ----
+      // ---- Restore prior conversation instead of always greeting ----
       if (history.length) {
         history.forEach(entry => {
           const item = document.createElement("div");
@@ -303,7 +317,6 @@
       } else {
         add("assistant", "Hello! How can I help you today?");
       }
-      // ---- END NEW BLOCK ----
 
       form.addEventListener("submit", async event => {
         event.preventDefault();
