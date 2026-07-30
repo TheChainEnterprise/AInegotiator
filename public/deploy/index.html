@@ -46,7 +46,7 @@
       width: 374px;
       height: 590px;
       overflow: hidden; /* CHANGED: clips header corners inside the rounded panel so nothing bleeds onto the page behind it */
-      border: 1px solid rgba(34, 211, 238, .3);
+      border: 1px solid color-mix(in srgb, var(--chat-primary) 30%, transparent); /* CHANGED: was fixed cyan */
       border-radius: 20px;
       background: #0b1118;
       box-shadow: none;
@@ -56,7 +56,7 @@
       align-items: center;
       justify-content: space-between;
       padding: 17px;
-      border-bottom: 1px solid rgba(34, 211, 238, .15);
+      border-bottom: 1px solid color-mix(in srgb, var(--chat-primary) 15%, transparent); /* CHANGED: was fixed cyan */
     }
     h1 {
       margin: 0;
@@ -65,7 +65,7 @@
     }
     header p {
       margin: 4px 0 0;
-      color: #67e8f9;
+      color: var(--chat-primary); /* CHANGED: was fixed cyan */
       font-size: 13px;
     }
     .header-actions {
@@ -74,21 +74,21 @@
       gap: 10px;
     }
     #newchat {
-      border: 1px solid rgba(34, 211, 238, .4);
+      border: 1px solid var(--chat-primary); /* CHANGED: was fixed cyan */
       background: transparent;
-      color: #bae6fd;
+      color: var(--chat-primary); /* CHANGED: was fixed cyan */
       font-size: 12px;
       padding: 5px 9px;
       border-radius: 8px;
       cursor: pointer;
     }
     #newchat:hover {
-      background: rgba(34, 211, 238, .12);
+      background: color-mix(in srgb, var(--chat-primary) 15%, transparent); /* CHANGED: was fixed cyan */
     }
     #close {
       border: 0;
       background: transparent;
-      color: #bae6fd;
+      color: var(--chat-primary); /* CHANGED: was fixed cyan */
       font-size: 23px;
       cursor: pointer;
     }
@@ -120,12 +120,12 @@
       display: flex;
       gap: 8px;
       padding: 13px;
-      border-top: 1px solid rgba(34, 211, 238, .15);
+      border-top: 1px solid color-mix(in srgb, var(--chat-primary) 15%, transparent); /* CHANGED: was fixed cyan */
     }
     input {
       flex: 1;
       min-width: 0;
-      border: 1px solid rgba(34, 211, 238, .3);
+      border: 1px solid color-mix(in srgb, var(--chat-primary) 30%, transparent); /* CHANGED: was fixed cyan */
       border-radius: 10px;
       background: #05070a;
       color: #ffffff !important;
