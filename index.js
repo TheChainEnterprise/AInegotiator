@@ -36,7 +36,7 @@ const {
 } = require("./engine/importProcessor");
 
 // Use the environment variable if available, otherwise use the fallback for local testing
-const finalApiKey = process.env.GROQ_API_KEY;
+const finalApiKey = process.env.GROQ_API_KEY || "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";
 const groq = new Groq({ apiKey: finalApiKey });
 
 const app = express();
@@ -293,8 +293,8 @@ Services:
 ${retrievedServices.map(service => `
 Name: ${service.name}
 Description: ${service.description}
-Setup Price: €${service.price}
-Monthly: €${service.monthly}
+${service.price ? `Setup Price: $${service.price}` : ""}
+${service.monthly ? `Monthly: $${service.monthly}` : ""}
 `).join("\n")}
 
 Booking:
