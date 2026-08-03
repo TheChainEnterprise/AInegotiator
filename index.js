@@ -1390,15 +1390,15 @@ Channel: ${channel}
 Session: ${session.id}`
     );
 
+    console.log("✅ Human handoff alert function called.");
+
     session.handoffNotified = true;
     session.status = "Waiting For Human";
 
-    console.log("✅ Human handoff alert function called.");
+    session.pendingReply =
+        "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
 
     await setTenantFile(tenantId, "vault.json", sessionVault);
-
-session.pendingReply =
-"Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
 }
 
 // Only stop replying if a real human has taken over.
