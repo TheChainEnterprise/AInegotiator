@@ -1209,7 +1209,7 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
     const lowerMessage = messageText.toLowerCase();
 
     // Automatically create a visitor session if it doesn't exist
-if (!sessionVault[sessionId]) {
+    if (!sessionVault[sessionId]) {
         sessionVault[sessionId] = {
             id: sessionId,
             name: "Visitor",
@@ -1235,8 +1235,60 @@ if (!sessionVault[sessionId]) {
         };
     }
 
-const session = sessionVault[sessionId];
-session.channel = channel;
+    const session = sessionVault[sessionId];
+    session.channel = channel;
+
+    // ====================================
+    // HUMAN HANDOFF
+    // ====================================
+
+    const HUMAN_REQUEST_PATTERNS = [
+        "real person",
+        "human",
+        "representative",
+        "someone",
+        "owner",
+        "call me",
+        "talk to a person",
+        "talk to someone",
+        "speak to someone",
+        "speak to a person",
+        "speak to a human",
+        "agent"
+    ];
+
+    const wantsHuman = HUMAN_REQUEST_PATTERNS.some(pattern =>
+        lowerMessage.includes(pattern)
+    );
+
+    if (wantsHuman) {
+
+        session.status = "Waiting For Human";
+        session.intent = "human_handoff";
+
+        if (!session.lead) {
+            session.lead = {
+                fullName: "",
+                phone: "",
+                email: "",
+                service: "",
+                preferredDate: "",
+                preferredTime: ""
+            };
+        }
+
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+
+        if (!session.lead.fullName) {
+            return "Absolutely. I'll arrange for a member of our team to contact you. First, may I have your full name?";
+        }
+
+        if (!session.lead.phone) {
+            return "Thank you. What's the best phone number or WhatsApp number to reach you?";
+        }
+
+        return "Perfect. I'll notify our team immediately and someone will contact you on WhatsApp as soon as possible.";
+    }
 
     // If a human has taken over this conversation, Val stays silent.
     if (session.status === "Manual Override") {
