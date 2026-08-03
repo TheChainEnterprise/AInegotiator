@@ -8,7 +8,8 @@ const express = require("express");
 const router = express.Router();
 
 // Import Val's core engine function from index.js
-const { processValMessage } = require("../index");
+const indexModule = require("../index");
+const processValMessage = indexModule.processValMessage || indexModule;
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
