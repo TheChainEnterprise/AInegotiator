@@ -7,9 +7,9 @@
 const express = require("express");
 const router = express.Router();
 
-// Import Val's core engine function from index.js
+// Import Val's core engine function safely from index.js
 const indexModule = require("../index");
-const processValMessage = indexModule.processValMessage || indexModule;
+const processValMessage = indexModule.processValMessage || (typeof indexModule === "function" ? indexModule : null);
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -84,6 +84,10 @@ router.post("/webhook/whatsapp", async (req, res) => {
         if (!textBody) {
             console.log("Skipping non-text message.");
             return;
+        }
+
+        if (typeof processValMessage !== "function") {
+            throw new Error("processValMessage is not available or failed to import from index.js");
         }
 
         const tenantId = process.env.DEFAULT_TENANT_ID || "default";
