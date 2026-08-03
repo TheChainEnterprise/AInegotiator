@@ -1183,8 +1183,8 @@ const processValMessage = async (tenantId, sessionId, messageText) => {
     if (!sessionVault[sessionId]) {
         sessionVault[sessionId] = {
             id: sessionId,
-            name: "Visitor",
-            label: "Chat",
+            name: "The Chain Technologies",
+            label: "WhatsApp / Web Chat",
             price: 0,
             status: "Active",
             lead: {
