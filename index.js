@@ -1397,7 +1397,8 @@ Session: ${session.id}`
 
     await setTenantFile(tenantId, "vault.json", sessionVault);
 
-    return "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
+session.pendingReply =
+"Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
 }
 
 // Only stop replying if a real human has taken over.
@@ -1446,28 +1447,51 @@ const bookingSystemMessage = {
             session.analysis = { buyerProfile: metaMatch[1], objectionType: metaMatch[2], concessionStep: metaMatch[3] };
         }
 
-        let cleanReply = fullReply.replace(/\[\[.*?\]\]/g, "").replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]/g, "").trim();
+let cleanReply = fullReply
+    .replace(/\[\[.*?\]\]/g, "")
+    .replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]/g, "")
+    .trim();
 
-const bookingComplete = session.lead.service && session.lead.preferredDate && session.lead.preferredTime && session.lead.fullName && session.lead.phone && session.lead.email;
-        if (bookingComplete && !session.lead.saved) {
-            session.lead.saved = true;
-            await appendTenantLog(tenantId, "leads.json", { timestamp: new Date().toISOString(), ...session.lead });
+// Override the AI reply if we're completing a human handoff.
+if (session.pendingReply) {
+    cleanReply = session.pendingReply;
+    session.pendingReply = null;
+}
 
-            const parsedTime = parseBookingDateTime(session.lead.preferredDate, session.lead.preferredTime);
-            if (parsedTime) {
-                try {
-                    await createCalendarEvent(tenantId, {
-                        summary: `${session.lead.service || "Appointment"} - ${session.lead.fullName}`,
-                        description: `Phone: ${session.lead.phone}\nEmail: ${session.lead.email}\nBooked via Val (${channel})`,
-                        startTime: parsedTime.startTime,
-                        endTime: parsedTime.endTime
-                    });
-                } catch (err) {
-                    console.error("Failed to create calendar event:", err);
-                }
-            }
+const bookingComplete =
+    session.lead.service &&
+    session.lead.preferredDate &&
+    session.lead.preferredTime &&
+    session.lead.fullName &&
+    session.lead.phone &&
+    session.lead.email;
+
+if (bookingComplete && !session.lead.saved) {
+    session.lead.saved = true;
+
+    await appendTenantLog(tenantId, "leads.json", {
+        timestamp: new Date().toISOString(),
+        ...session.lead
+    });
+
+    const parsedTime = parseBookingDateTime(
+        session.lead.preferredDate,
+        session.lead.preferredTime
+    );
+
+    if (parsedTime) {
+        try {
+            await createCalendarEvent(tenantId, {
+                summary: `${session.lead.service || "Appointment"} - ${session.lead.fullName}`,
+                description: `Phone: ${session.lead.phone}\nEmail: ${session.lead.email}\nBooked via Val (${channel})`,
+                startTime: parsedTime.startTime,
+                endTime: parsedTime.endTime
+            });
+        } catch (err) {
+            console.error("Failed to create calendar event:", err);
         }
-
+    }
+}
         const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
         if (sentences && sentences.length > 3) cleanReply = sentences.slice(0, 3).join(" ").trim();
 
