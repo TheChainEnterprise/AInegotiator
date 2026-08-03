@@ -38,7 +38,8 @@ const {
 const whatsappRoutes = require("./routes/whatsapp");
 const { sendWhatsAppMessageForTenant } = require("./engine/whatsappRegistry");
 const manualMessageRoutes = require("./routes/manualMessage");
-const requireInboxAuth = manualMessageRoutes.requireInboxAuth; 
+const requireInboxAuth = manualMessageRoutes.requireInboxAuth;
+const { getAuthUrl, handleOAuthCallback, isCalendarConnected, createCalendarEvent } = require("./engine/googleCalendar");
 
 // Use the environment variable if available, otherwise use the fallback for local testing
 const finalApiKey = process.env.GROQ_API_KEY || "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";
@@ -387,11 +388,13 @@ GENERAL RULES
 
 GREETING
 
-If someone says hello:
+If someone says hello, and this is the very first message in the conversation:
 
 → Welcome them.
 → Introduce yourself.
 → Ask how you can help.
+
+Once you have already introduced yourself once, NEVER greet or introduce yourself again for the rest of the conversation, no matter what the visitor says — including if they just tell you their name. Continue the conversation naturally instead.
 
 BUSINESS QUESTIONS
 
@@ -1078,51 +1081,39 @@ app.delete("/api/admin/import", async (req, res) => {
 });
 
 // ====================================
-// GOOGLE CALENDAR PLACEHOLDER API
+// GOOGLE CALENDAR — real OAuth integration
 // ====================================
 
 app.get("/api/admin/calendar/connect", (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || req.query.tenant || "default";
+    const url = getAuthUrl(tenantId);
+    res.json({ url });
+});
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+app.get("/api/admin/calendar/oauth/callback", async (req, res) => {
+    const { code, state } = req.query;
+    const tenantId = state || "default";
 
-    res.json({
-        success: false,
-        url: `${process.env.AI_ENGINE_URL || "http://localhost:3001"}/api/admin/calendar/oauth?tenant=${tenantId}`
-    });
-
+    try {
+        await handleOAuthCallback(code, tenantId);
+        res.send(`
+            <html>
+                <body style="font-family:Arial;padding:40px;">
+                    <h2>Google Calendar Connected</h2>
+                    <p>You can close this window and return to your dashboard.</p>
+                </body>
+            </html>
+        `);
+    } catch (err) {
+        console.error("Google Calendar OAuth error:", err);
+        res.status(500).send("Failed to connect Google Calendar: " + err.message);
+    }
 });
 
 app.get("/api/admin/calendar/list", async (req, res) => {
-
     const tenantId = req.headers["x-tenant-id"] || "default";
-
-    const settings = await getTenantFile(tenantId, "integrations.json", null);
-
-    const connected = settings?.enabled === true;
-
-    res.json({
-        connected,
-        calendars: [],
-        message: connected
-            ? "Calendar integration is enabled. OAuth is not connected yet."
-            : "Calendar integration is disabled."
-    });
-
-});
-
-app.get("/api/admin/calendar/oauth", (req, res) => {
-
-    res.send(`
-        <html>
-            <body style="font-family:Arial;padding:40px;">
-                <h2>Google Calendar Integration</h2>
-                <p>This page is a placeholder.</p>
-                <p>The real Google OAuth flow will be implemented in the next phase.</p>
-                <p>You successfully reached the backend.</p>
-            </body>
-        </html>
-    `);
-
+    const connected = await isCalendarConnected(tenantId);
+    res.json({ connected });
 });
 
 // ====================================
@@ -1173,6 +1164,40 @@ app.post('/api/override', async (req, res) => {
         res.status(400).json({ error: "Session missing." });
     }
 });
+
+// Converts a captured weekday name + loose time string (e.g. "monday", "3pm")
+// into real start/end ISO timestamps for the next occurrence of that weekday.
+function parseBookingDateTime(dayName, timeStr) {
+    const weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+    const targetDay = weekdays.indexOf((dayName || "").toLowerCase());
+    if (targetDay === -1) return null;
+
+    const now = new Date();
+    let daysUntil = (targetDay - now.getDay() + 7) % 7;
+    if (daysUntil === 0) daysUntil = 7;
+
+    const targetDate = new Date(now);
+    targetDate.setDate(now.getDate() + daysUntil);
+
+    const match = (timeStr || "").match(/([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?/i);
+    let hour = 10;
+    let minute = 0;
+
+    if (match) {
+        hour = parseInt(match[1], 10);
+        minute = match[2] ? parseInt(match[2], 10) : 0;
+        const meridiem = match[3]?.toLowerCase();
+        if (meridiem === "pm" && hour < 12) hour += 12;
+        if (meridiem === "am" && hour === 12) hour = 0;
+    }
+
+    targetDate.setHours(hour, minute, 0, 0);
+
+    const startTime = targetDate.toISOString();
+    const endTime = new Date(targetDate.getTime() + 60 * 60 * 1000).toISOString();
+
+    return { startTime, endTime };
+}
 
 // Reusable core engine function used by both website chat and WhatsApp
 const processValMessage = async (tenantId, sessionId, messageText, channel = "website") => {
@@ -1291,8 +1316,9 @@ session.channel = channel;
         }
 
         const bookingSystemMessage = {
+const bookingSystemMessage = {
             role: "system",
-            content: `Current conversation state: BOOKING\nService: ${session.lead.service || "missing"}\nDate: ${session.lead.preferredDate || "missing"}\nTime: ${session.lead.preferredTime || "missing"}\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}`
+            content: `Current conversation state: BOOKING\nService: ${session.lead.service || "missing"}\nDate: ${session.lead.preferredDate || "missing"}\nTime: ${session.lead.preferredTime || "missing"}\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nDo NOT greet the visitor or introduce yourself. You already did that earlier in this conversation. Just ask for the next missing field listed above.`
         };
 
         const messagesForGroq = session.conversationState === "BOOKING" ? [...session.history, bookingSystemMessage] : session.history;
@@ -1311,10 +1337,24 @@ session.channel = channel;
 
         let cleanReply = fullReply.replace(/\[\[.*?\]\]/g, "").replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]/g, "").trim();
 
-        const bookingComplete = session.lead.service && session.lead.preferredDate && session.lead.preferredTime && session.lead.fullName && session.lead.phone && session.lead.email;
+const bookingComplete = session.lead.service && session.lead.preferredDate && session.lead.preferredTime && session.lead.fullName && session.lead.phone && session.lead.email;
         if (bookingComplete && !session.lead.saved) {
             session.lead.saved = true;
             await appendTenantLog(tenantId, "leads.json", { timestamp: new Date().toISOString(), ...session.lead });
+
+            const parsedTime = parseBookingDateTime(session.lead.preferredDate, session.lead.preferredTime);
+            if (parsedTime) {
+                try {
+                    await createCalendarEvent(tenantId, {
+                        summary: `${session.lead.service || "Appointment"} - ${session.lead.fullName}`,
+                        description: `Phone: ${session.lead.phone}\nEmail: ${session.lead.email}\nBooked via Val (${channel})`,
+                        startTime: parsedTime.startTime,
+                        endTime: parsedTime.endTime
+                    });
+                } catch (err) {
+                    console.error("Failed to create calendar event:", err);
+                }
+            }
         }
 
         const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
