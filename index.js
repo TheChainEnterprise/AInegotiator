@@ -6,7 +6,6 @@ const cors = require('cors');
 const fs = require("fs");
 const cron = require("node-cron");
 const path = require("path");
-const { sendTelegramNotification } = require("./engine/notifications");
 
 // CHANGED: connectDB starts the shared database connection at server startup
 const { connectDB } = require("./engine/db");
@@ -1377,10 +1376,11 @@ if (session.intent === "human_handoff") {
 
     await setTenantFile(tenantId, "vault.json", sessionVault);
 
-    await sendTelegramNotification(
-`🚨 HUMAN REQUEST
+    console.log("🚨 Sending human handoff alert...");
 
-Tenant: ${tenantId}
+    sendAlert(
+        tenantId,
+`🚨 HUMAN REQUEST
 
 Name: ${session.lead.fullName}
 
@@ -1389,18 +1389,21 @@ Phone: ${session.lead.phone}
 Channel: ${channel}
 
 Session: ${session.id}`
-);
+    );
 
-return "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
+    console.log("✅ Human handoff alert function called.");
 
+    return "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
 }
 
-    if (session.history.length === 0 || session.history[0].role !== "system") {
-        session.history = [{ role: "system", content: await buildSystemPrompt(tenantId, messageText) }];
-    } else {
-        session.history[0].content = await buildSystemPrompt(tenantId, messageText);
-    }
-
+if (session.history.length === 0 || session.history[0].role !== "system") {
+    session.history = [{
+        role: "system",
+        content: await buildSystemPrompt(tenantId, messageText)
+    }];
+} else {
+    session.history[0].content = await buildSystemPrompt(tenantId, messageText);
+}
     session.history.push({ role: 'user', content: messageText });
 
     try {
