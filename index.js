@@ -1318,34 +1318,66 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         };
     }
 
-    const emailMatch = messageText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-    if (emailMatch) session.lead.email = emailMatch[0];
+const emailMatch = messageText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+if (emailMatch) session.lead.email = emailMatch[0];
 
-    const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
-    if (phoneMatch) session.lead.phone = phoneMatch[0];
+const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
+if (phoneMatch) session.lead.phone = phoneMatch[0];
 
-    const nameMatch = messageText.match(/(?:my name is|i am|i'm)\s+([A-Za-z]+(?:\s+[A-Za-z]+)+)/i);
-    if (nameMatch) session.lead.fullName = nameMatch[1];
+const nameMatch = messageText.match(/(?:my name is|i am|i'm)\s+([A-Za-z]+(?:\s+[A-Za-z]+)+)/i);
 
-    const availableServices = await getTenantFile(tenantId, "services.json", []);
-    for (const service of availableServices) {
-        const serviceName = service.name.toLowerCase();
-        if (lowerMessage.includes(serviceName)) {
-            session.lead.service = service.name;
-            break;
-        }
+if (nameMatch) {
+    session.lead.fullName = nameMatch[1];
+} else if (
+    session.intent === "human_handoff" &&
+    !session.lead.fullName &&
+    messageText.trim().split(/\s+/).length >= 2
+) {
+    session.lead.fullName = messageText.trim();
+}
+
+const availableServices = await getTenantFile(tenantId, "services.json", []);
+for (const service of availableServices) {
+    const serviceName = service.name.toLowerCase();
+    if (lowerMessage.includes(serviceName)) {
+        session.lead.service = service.name;
+        break;
+    }
+}
+
+const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+for (const day of weekdays) {
+    if (lowerMessage.includes(day)) {
+        session.lead.preferredDate = day;
+        break;
+    }
+}
+
+const timeMatch = messageText.match(/\b([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?\b/i);
+if (timeMatch) session.lead.preferredTime = timeMatch[0];
+
+// ====================================
+// CONTINUE HUMAN HANDOFF
+// ====================================
+
+if (session.intent === "human_handoff") {
+
+    if (!session.lead.fullName) {
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+        return "May I have your full name?";
     }
 
-    const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-    for (const day of weekdays) {
-        if (lowerMessage.includes(day)) {
-            session.lead.preferredDate = day;
-            break;
-        }
+    if (!session.lead.phone) {
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+        return "Thank you. What's the best WhatsApp or phone number to reach you?";
     }
 
-    const timeMatch = messageText.match(/\b([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?\b/i);
-    if (timeMatch) session.lead.preferredTime = timeMatch[0];
+    session.status = "Waiting For Human";
+
+    await setTenantFile(tenantId, "vault.json", sessionVault);
+
+    return "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
+}
 
     if (session.history.length === 0 || session.history[0].role !== "system") {
         session.history = [{ role: "system", content: await buildSystemPrompt(tenantId, messageText) }];
