@@ -1211,6 +1211,7 @@ if (!sessionVault[sessionId]) {
     }
 
 const session = sessionVault[sessionId];
+session.channel = channel;
 
     // If a human has taken over this conversation, Val stays silent.
     if (session.status === "Manual Override") {
