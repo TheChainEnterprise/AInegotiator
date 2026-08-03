@@ -1315,7 +1315,6 @@ session.channel = channel;
             else session.nextQuestion = "complete";
         }
 
-        const bookingSystemMessage = {
 const bookingSystemMessage = {
             role: "system",
             content: `Current conversation state: BOOKING\nService: ${session.lead.service || "missing"}\nDate: ${session.lead.preferredDate || "missing"}\nTime: ${session.lead.preferredTime || "missing"}\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nDo NOT greet the visitor or introduce yourself. You already did that earlier in this conversation. Just ask for the next missing field listed above.`
