@@ -35,6 +35,8 @@ const {
     processWebsiteContent,
 } = require("./engine/importProcessor");
 
+const whatsappRoutes = require("./routes/whatsapp");
+
 // Use the environment variable if available, otherwise use the fallback for local testing
 const finalApiKey = process.env.GROQ_API_KEY || "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";
 const groq = new Groq({ apiKey: finalApiKey });
@@ -45,6 +47,7 @@ const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(whatsappRoutes);
 
 // THOUGHT BUFFER: Helper to simulate natural delay
 const simulateThinking = () => Promise.resolve();
