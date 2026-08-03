@@ -1360,7 +1360,10 @@ if (timeMatch) session.lead.preferredTime = timeMatch[0];
 // CONTINUE HUMAN HANDOFF
 // ====================================
 
-if (session.intent === "human_handoff") {
+if (
+    session.intent === "human_handoff" &&
+    !session.handoffNotified
+) {
 
     if (!session.lead.fullName) {
         await setTenantFile(tenantId, "vault.json", sessionVault);
@@ -1371,10 +1374,6 @@ if (session.intent === "human_handoff") {
         await setTenantFile(tenantId, "vault.json", sessionVault);
         return "Thank you. What's the best WhatsApp or phone number to reach you?";
     }
-
-    session.status = "Waiting For Human";
-
-    await setTenantFile(tenantId, "vault.json", sessionVault);
 
     console.log("🚨 Sending human handoff alert...");
 
@@ -1391,9 +1390,19 @@ Channel: ${channel}
 Session: ${session.id}`
     );
 
+    session.handoffNotified = true;
+    session.status = "Waiting For Human";
+
     console.log("✅ Human handoff alert function called.");
 
+    await setTenantFile(tenantId, "vault.json", sessionVault);
+
     return "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
+}
+
+// Only stop replying if a real human has taken over.
+if (session.status === "Manual Override") {
+    return null;
 }
 
 if (session.history.length === 0 || session.history[0].role !== "system") {
