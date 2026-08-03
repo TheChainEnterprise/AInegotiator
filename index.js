@@ -36,7 +36,9 @@ const {
 } = require("./engine/importProcessor");
 
 const whatsappRoutes = require("./routes/whatsapp");
-const manualMessageRoutes = require("./routes/manualMessage"); 
+const { sendWhatsAppMessageForTenant } = require("./engine/whatsappRegistry");
+const manualMessageRoutes = require("./routes/manualMessage");
+const requireInboxAuth = manualMessageRoutes.requireInboxAuth; 
 
 // Use the environment variable if available, otherwise use the fallback for local testing
 const finalApiKey = process.env.GROQ_API_KEY || "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";
@@ -1173,7 +1175,7 @@ app.post('/api/override', async (req, res) => {
 });
 
 // Reusable core engine function used by both website chat and WhatsApp
-const processValMessage = async (tenantId, sessionId, messageText) => {
+const processValMessage = async (tenantId, sessionId, messageText, channel = "website") => {
     await simulateThinking();
 
     let sessionVault = await getTenantFile(tenantId, "vault.json", null);
@@ -1182,11 +1184,12 @@ const processValMessage = async (tenantId, sessionId, messageText) => {
     const lowerMessage = messageText.toLowerCase();
 
     // Automatically create a visitor session if it doesn't exist
-    if (!sessionVault[sessionId]) {
+if (!sessionVault[sessionId]) {
         sessionVault[sessionId] = {
             id: sessionId,
             name: "Visitor",
             label: "Chat",
+            channel: channel,
             price: 0,
             status: "Active",
             lead: {
@@ -1207,7 +1210,12 @@ const processValMessage = async (tenantId, sessionId, messageText) => {
         };
     }
 
-    const session = sessionVault[sessionId];
+const session = sessionVault[sessionId];
+
+    // If a human has taken over this conversation, Val stays silent.
+    if (session.status === "Manual Override") {
+        return null;
+    }
 
     if (lowerMessage.includes("book")) {
         session.conversationState = "BOOKING";
@@ -1328,8 +1336,76 @@ const processValMessage = async (tenantId, sessionId, messageText) => {
 app.post('/api/chat', async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
     const { sessionId, message } = req.body;
-    const responseText = await processValMessage(tenantId, sessionId, message);
-    res.json({ response: responseText });
+    const responseText = await processValMessage(tenantId, sessionId, message, "website");
+    res.json({ response: responseText || "" });
+});
+
+// ====================================
+// ADMIN CONVERSATIONS — unified inbox API for the dashboard
+// ====================================
+
+// List conversations for a tenant, filtered by channel ("whatsapp" or "website")
+app.get("/api/admin/conversations", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const channel = req.query.channel || "website";
+
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+
+    const list = Object.values(sessionVault)
+        .filter(s => (s.channel || "website") === channel)
+        .map(s => {
+            const lastMsg = (s.history || []).filter(h => h.role !== "system").slice(-1)[0];
+            return {
+                sessionId: s.id,
+                name: s.lead?.fullName || s.name || s.id,
+                phone: s.lead?.phone || (channel === "whatsapp" ? s.id : ""),
+                status: s.status,
+                lastMessage: lastMsg?.content || "",
+                lastRole: lastMsg?.role || ""
+            };
+        });
+
+    res.json(list);
+});
+
+// Get full message history for one conversation
+app.get("/api/admin/conversations/:sessionId", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[req.params.sessionId];
+
+    if (!session) return res.status(404).json({ error: "Conversation not found." });
+
+    res.json({
+        sessionId: session.id,
+        channel: session.channel || "website",
+        status: session.status,
+        lead: session.lead,
+        messages: (session.history || []).filter(h => h.role !== "system")
+    });
+});
+
+// Send a manual reply into a conversation (pauses Val automatically)
+app.post("/api/admin/conversations/:sessionId/reply", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const { message } = req.body;
+
+    if (!message) return res.status(400).json({ error: "Message is required." });
+
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[req.params.sessionId];
+
+    if (!session) return res.status(404).json({ error: "Conversation not found." });
+
+    session.status = "Manual Override";
+    session.history.push({ role: "assistant", content: message });
+    await setTenantFile(tenantId, "vault.json", sessionVault);
+
+    if ((session.channel || "website") === "whatsapp") {
+        await sendWhatsAppMessageForTenant(tenantId, session.id, message);
+    }
+
+    res.json({ success: true });
 });
 
 // ====================================
