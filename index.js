@@ -1170,15 +1170,165 @@ app.post('/api/override', async (req, res) => {
     }
 });
 
-app.post('/api/chat', async (req, res) => {
-    console.log("TENANT:", req.headers['x-tenant-id']);
+// Reusable core engine function used by both website chat and WhatsApp
+const processValMessage = async (tenantId, sessionId, messageText) => {
     await simulateThinking();
-    const tenantId = req.headers['x-tenant-id'] || 'default';
 
     let sessionVault = await getTenantFile(tenantId, "vault.json", null);
     if (!sessionVault) sessionVault = INITIAL_VAULT;
 
+    const lowerMessage = messageText.toLowerCase();
+
+    // Automatically create a visitor session if it doesn't exist
+    if (!sessionVault[sessionId]) {
+        sessionVault[sessionId] = {
+            id: sessionId,
+            name: "Visitor",
+            label: "Chat",
+            price: 0,
+            status: "Active",
+            lead: {
+                fullName: "",
+                phone: "",
+                email: "",
+                service: "",
+                preferredDate: "",
+                preferredTime: ""
+            },
+            conversationState: "DISCUSSION",
+            history: [],
+            analysis: {
+                buyerProfile: "Unknown",
+                objectionType: "Unknown",
+                concessionStep: "None"
+            }
+        };
+    }
+
+    const session = sessionVault[sessionId];
+
+    if (lowerMessage.includes("book")) {
+        session.conversationState = "BOOKING";
+    } else if (
+        lowerMessage.includes("price") ||
+        lowerMessage.includes("cost") ||
+        lowerMessage.includes("how much")
+    ) {
+        session.conversationState = "PRICING";
+    } else {
+        session.conversationState = "DISCUSSION";
+    }
+
+    if (!session.lead) {
+        session.lead = {
+            fullName: "",
+            phone: "",
+            email: "",
+            service: "",
+            preferredDate: "",
+            preferredTime: ""
+        };
+    }
+
+    const emailMatch = messageText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    if (emailMatch) session.lead.email = emailMatch[0];
+
+    const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
+    if (phoneMatch) session.lead.phone = phoneMatch[0];
+
+    const nameMatch = messageText.match(/(?:my name is|i am|i'm)\s+([A-Za-z]+(?:\s+[A-Za-z]+)+)/i);
+    if (nameMatch) session.lead.fullName = nameMatch[1];
+
+    const availableServices = await getTenantFile(tenantId, "services.json", []);
+    for (const service of availableServices) {
+        const serviceName = service.name.toLowerCase();
+        if (lowerMessage.includes(serviceName)) {
+            session.lead.service = service.name;
+            break;
+        }
+    }
+
+    const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    for (const day of weekdays) {
+        if (lowerMessage.includes(day)) {
+            session.lead.preferredDate = day;
+            break;
+        }
+    }
+
+    const timeMatch = messageText.match(/\b([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?\b/i);
+    if (timeMatch) session.lead.preferredTime = timeMatch[0];
+
+    if (session.history.length === 0 || session.history[0].role !== "system") {
+        session.history = [{ role: "system", content: await buildSystemPrompt(tenantId, messageText) }];
+    } else {
+        session.history[0].content = await buildSystemPrompt(tenantId, messageText);
+    }
+
+    session.history.push({ role: 'user', content: messageText });
+
+    try {
+        session.nextQuestion = null;
+        if (session.conversationState === "BOOKING") {
+            if (!session.lead.service) session.nextQuestion = "service";
+            else if (!session.lead.preferredDate) session.nextQuestion = "preferredDate";
+            else if (!session.lead.preferredTime) session.nextQuestion = "preferredTime";
+            else if (!session.lead.fullName) session.nextQuestion = "fullName";
+            else if (!session.lead.phone) session.nextQuestion = "phone";
+            else if (!session.lead.email) session.nextQuestion = "email";
+            else session.nextQuestion = "complete";
+        }
+
+        const bookingSystemMessage = {
+            role: "system",
+            content: `Current conversation state: BOOKING\nService: ${session.lead.service || "missing"}\nDate: ${session.lead.preferredDate || "missing"}\nTime: ${session.lead.preferredTime || "missing"}\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}`
+        };
+
+        const messagesForGroq = session.conversationState === "BOOKING" ? [...session.history, bookingSystemMessage] : session.history;
+
+        const response = await groq.chat.completions.create({
+            model: "llama-3.1-8b-instant",
+            messages: messagesForGroq,
+            temperature: 0.5
+        });
+
+        let fullReply = response.choices[0].message.content;
+        const metaMatch = fullReply.match(/\[\[\s*PROFILE:\s*(.*?)\s*\|\s*OBJECTION:\s*(.*?)\s*\|\s*CONCESSION:\s*(.*?)\s*\]\]/);
+        if (metaMatch) {
+            session.analysis = { buyerProfile: metaMatch[1], objectionType: metaMatch[2], concessionStep: metaMatch[3] };
+        }
+
+        let cleanReply = fullReply.replace(/\[\[.*?\]\]/g, "").replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]/g, "").trim();
+
+        const bookingComplete = session.lead.service && session.lead.preferredDate && session.lead.preferredTime && session.lead.fullName && session.lead.phone && session.lead.email;
+        if (bookingComplete && !session.lead.saved) {
+            session.lead.saved = true;
+            await appendTenantLog(tenantId, "leads.json", { timestamp: new Date().toISOString(), ...session.lead });
+        }
+
+        const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
+        if (sentences && sentences.length > 3) cleanReply = sentences.slice(0, 3).join(" ").trim();
+
+        session.history.push({ role: "assistant", content: cleanReply });
+        session.history = [session.history[0], ...session.history.slice(-6)];
+
+        await logAudit(tenantId, sessionId, messageText, fullReply, session.analysis);
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+
+        return cleanReply;
+    } catch (error) {
+        sendAlert(tenantId, `CRITICAL FAILURE: ${error.message}`);
+        return "I'm recalibrating...";
+    }
+};
+
+// Website Endpoint uses the shared core function
+app.post('/api/chat', async (req, res) => {
+    const tenantId = req.headers['x-tenant-id'] || 'default';
     const { sessionId, message } = req.body;
+    const responseText = await processValMessage(tenantId, sessionId, message);
+    res.json({ response: responseText });
+});
     const lowerMessage = message.toLowerCase();
 
     // Automatically create a visitor session
@@ -1631,3 +1781,5 @@ connectDB()
         console.error("Failed to connect to MongoDB. Server not started.", err);
         process.exit(1);
     });
+
+module.exports = { app, processValMessage };

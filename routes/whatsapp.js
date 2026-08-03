@@ -3,16 +3,12 @@
 // Handles Meta's WhatsApp Cloud API webhook:
 //   - GET  /webhook/whatsapp  -> verification handshake
 //   - POST /webhook/whatsapp  -> incoming WhatsApp events
-//
-// Current Phase:
-// Phase 1 - Transport Layer Verification
-//
-// Goal:
-// Confirm that Meta is successfully delivering webhook events to our backend
-// before connecting WhatsApp to Val.
 
 const express = require("express");
 const router = express.Router();
+
+// Import Val's core engine function from index.js
+const { processValMessage } = require("../index");
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
@@ -34,14 +30,11 @@ router.get("/webhook/whatsapp", (req, res) => {
     console.log("========================================");
 
     if (mode === "subscribe" && token === VERIFY_TOKEN) {
-
         console.log("✅ WhatsApp webhook verified successfully.");
-
         return res.status(200).send(challenge);
     }
 
     console.log("❌ WhatsApp webhook verification failed.");
-
     return res.sendStatus(403);
 });
 
@@ -50,8 +43,7 @@ router.get("/webhook/whatsapp", (req, res) => {
 // ========================================================
 
 router.post("/webhook/whatsapp", async (req, res) => {
-
-    // Always acknowledge Meta immediately.
+    // Always acknowledge Meta immediately so it doesn't timeout.
     res.sendStatus(200);
 
     console.log("");
@@ -63,21 +55,17 @@ router.post("/webhook/whatsapp", async (req, res) => {
     console.log("==================================================");
 
     try {
-
         const entry = req.body.entry?.[0];
         const change = entry?.changes?.[0];
         const value = change?.value;
         const message = value?.messages?.[0];
 
         if (!message) {
-
             console.log("ℹ️ No incoming user message.");
-
             if (value?.statuses) {
                 console.log("Status update:");
                 console.log(JSON.stringify(value.statuses, null, 2));
             }
-
             return;
         }
 
@@ -97,27 +85,27 @@ router.post("/webhook/whatsapp", async (req, res) => {
             return;
         }
 
-        // Temporary placeholder until connected to Val
-        const replyText = `Val here — I got your message: "${textBody}"`;
+        const tenantId = process.env.DEFAULT_TENANT_ID || "default";
 
-        console.log("Replying:");
+        console.log("Processing message through Val's engine for WhatsApp...");
+
+        // Call Val's core engine function directly
+        const replyText = await processValMessage(tenantId, fromNumber, textBody);
+
+        console.log("Val's response generated. Replying to WhatsApp...");
         console.log(replyText);
 
         await sendWhatsAppMessage(fromNumber, replyText);
 
         console.log("✅ Reply sent successfully.");
 
-    }
-    catch (err) {
-
+    } catch (err) {
         console.error("");
         console.error("========================================");
         console.error("❌ WhatsApp webhook error");
         console.error(err);
         console.error("========================================");
-
     }
-
 });
 
 // ========================================================
@@ -125,7 +113,6 @@ router.post("/webhook/whatsapp", async (req, res) => {
 // ========================================================
 
 async function sendWhatsAppMessage(toNumber, text) {
-
     const url = `https://graph.facebook.com/v21.0/${PHONE_NUMBER_ID}/messages`;
 
     console.log("");
@@ -133,46 +120,33 @@ async function sendWhatsAppMessage(toNumber, text) {
     console.log("To:", toNumber);
 
     const response = await fetch(url, {
-
         method: "POST",
-
         headers: {
-
             Authorization: `Bearer ${ACCESS_TOKEN}`,
             "Content-Type": "application/json"
-
         },
-
         body: JSON.stringify({
-
             messaging_product: "whatsapp",
             to: toNumber,
             type: "text",
             text: {
                 body: text
             }
-
         })
-
     });
 
     const data = await response.json();
 
     if (!response.ok) {
-
         console.error("");
         console.error("❌ Failed sending WhatsApp message");
         console.error(JSON.stringify(data, null, 2));
-
     } else {
-
         console.log("✅ Meta accepted outgoing message.");
         console.log(JSON.stringify(data, null, 2));
-
     }
 
     return data;
-
 }
 
 module.exports = router;
