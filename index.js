@@ -450,11 +450,12 @@ If someone wants to book:
 
 BOOKING ORDER
 
-1. Service
-2. Full Name
-3. Phone / WhatsApp
-4. Email (if missing)
-5. Confirm they are ready to select a time.
+1. Full Name
+2. Phone / WhatsApp
+3. Email (if missing)
+4. Confirm they are ready to select a time.
+
+(Note: Service is completely optional. If the user wants to book a demo without specifying a service, do not block them or make up services. Just proceed straight to collecting their name.)
 
 Never ask for information already collected.
 
@@ -1410,16 +1411,20 @@ if (emailMatch) session.lead.email = emailMatch[0];
 const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
 if (phoneMatch) session.lead.phone = phoneMatch[0];
 
-const nameMatch = messageText.match(/(?:my name is|i am|i'm)\s+([A-Za-z]+(?:\s+[A-Za-z]+)+)/i);
+const nameMatch = messageText.match(/(?:my name is|i am|i'm|it's|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
 
 if (nameMatch) {
     session.lead.fullName = nameMatch[1];
+    session.name = nameMatch[1]; // Updates the dashboard list view immediately
 } else if (
-    session.intent === "human_handoff" &&
+    session.conversationState === "BOOKING" &&
     !session.lead.fullName &&
-    messageText.trim().split(/\s+/).length >= 2
+    messageText.trim().split(/\s+/).length >= 1 &&
+    !messageText.includes("@") &&
+    !messageText.includes("+")
 ) {
     session.lead.fullName = messageText.trim();
+    session.name = messageText.trim(); // Updates the dashboard list view immediately
 }
 
 const availableServices = await getTenantFile(tenantId, "services.json", []);
@@ -1503,18 +1508,17 @@ if (session.history.length === 0 || session.history[0].role !== "system") {
     try {
         session.nextQuestion = null;
 if (session.conversationState === "BOOKING") {
-            if (!session.lead.service) session.nextQuestion = "service";
-            else if (!session.lead.fullName) session.nextQuestion = "fullName";
+            if (!session.lead.fullName) session.nextQuestion = "fullName";
             else if (!session.lead.phone) session.nextQuestion = "phone";
             else if (!session.lead.email) session.nextQuestion = "email";
             else session.nextQuestion = "complete";
         }
 
-let bookingInstruction = `Current conversation state: BOOKING\nService: ${session.lead.service || "missing"}\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nRules for Booking:\n- Ask for ONE missing field at a time.\n- Do NOT greet or introduce yourself.\n- If all fields are collected, output ONLY: [SEND_CALENDAR_LINK]`;
+let bookingInstruction = `Current conversation state: BOOKING\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nRules for Booking:\n- Ask for ONE missing field at a time.\n- Do NOT invent or ask about services if the user just wants a demo.\n- Do NOT greet or introduce yourself.\n- If all fields are collected, output ONLY: [SEND_CALENDAR_LINK]`;
 
-if (session.nextQuestion === "complete") {
-    bookingInstruction = `All required booking information has been collected. You are strictly forbidden from asking any more questions. You MUST reply with EXACTLY this code and nothing else: [SEND_CALENDAR_LINK]`;
-}
+        if (session.nextQuestion === "complete") {
+            bookingInstruction = `All required booking information has been collected. You are strictly forbidden from asking any more questions or mentioning availability. You MUST reply with EXACTLY this code and nothing else: [SEND_CALENDAR_LINK]`;
+        }
 
         const bookingSystemMessage = {
             role: "system",
