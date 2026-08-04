@@ -6,6 +6,17 @@ const cors = require('cors');
 const fs = require("fs");
 const cron = require("node-cron");
 const path = require("path");
+const nodemailer = require('nodemailer');
+const moment = require('moment');
+
+// Set up the email transporter
+const emailTransporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+    },
+});
 
 // CHANGED: connectDB starts the shared database connection at server startup
 const { connectDB } = require("./engine/db");
@@ -39,7 +50,7 @@ const whatsappRoutes = require("./routes/whatsapp");
 const { sendWhatsAppMessageForTenant } = require("./engine/whatsappRegistry");
 const manualMessageRoutes = require("./routes/manualMessage");
 const requireInboxAuth = manualMessageRoutes.requireInboxAuth;
-const { getAuthUrl, handleOAuthCallback, isCalendarConnected, createCalendarEvent } = require("./engine/googleCalendar");
+const { getAuthUrl, handleOAuthCallback, isCalendarConnected, createCalendarEvent, getAvailableSlots } = require("./engine/googleCalendar");
 
 // Use the environment variable if available, otherwise use the fallback for local testing
 const finalApiKey = process.env.GROQ_API_KEY || "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";
@@ -439,13 +450,10 @@ If someone wants to book:
 BOOKING ORDER
 
 1. Service
-2. Date
-3. Time
-4. Full Name
-5. Phone / WhatsApp
-6. Email (if missing)
-7. Repeat booking summary
-8. Confirm booking request and explain the next step.
+2. Full Name
+3. Phone / WhatsApp
+4. Email (if missing)
+5. Confirm they are ready to select a time.
 
 Never ask for information already collected.
 
@@ -1199,9 +1207,8 @@ function parseBookingDateTime(dayName, timeStr) {
     return { startTime, endTime };
 }
 
-// Executes a completed booking: saves it, tries to create the calendar event,
-// and returns exactly what happened. The AI's own reply is NEVER trusted to
-// know whether the booking actually succeeded — only this function decides that.
+// Executes a completed booking: saves it, creates the calendar event,
+// sends an email confirmation, and sends a WhatsApp confirmation.
 async function executeBooking(tenantId, lead, channel) {
     const bookingRecord = {
         timestamp: new Date().toISOString(),
@@ -1212,13 +1219,16 @@ async function executeBooking(tenantId, lead, channel) {
         phone: lead.phone,
         email: lead.email,
         channel,
-        calendarEventCreated: false
+        calendarEventCreated: false,
+        emailSent: false,
+        whatsappSent: false
     };
 
     const parsedTime = parseBookingDateTime(lead.preferredDate, lead.preferredTime);
 
     if (parsedTime) {
         try {
+            // 1. Google Calendar Integration
             const calendarResult = await createCalendarEvent(tenantId, {
                 summary: `${lead.service || "Appointment"} - ${lead.fullName}`,
                 description: `Phone: ${lead.phone}\nEmail: ${lead.email}\nBooked via Val (${channel})`,
@@ -1232,11 +1242,37 @@ async function executeBooking(tenantId, lead, channel) {
             }
         } catch (err) {
             console.error("Failed to create calendar event:", err);
+            sendAlert(tenantId, `Calendar Sync Failed for ${lead.fullName}. Error: ${err.message}`);
+        }
+
+        // STEP 5: Email Confirmation
+        if (lead.email) {
+            try {
+                await emailTransporter.sendMail({
+                    from: `"Val from The Chain" <${process.env.SMTP_USER}>`, 
+                    to: lead.email,
+                    subject: `Booking Confirmed: ${lead.service}`,
+                    text: `Hi ${lead.fullName},\n\nYour booking for ${lead.service} is confirmed for ${lead.preferredDate} at ${lead.preferredTime}.\n\nIf you need to reschedule, please reply to our WhatsApp number.\n\nBest,\nVal`,
+                });
+                bookingRecord.emailSent = true;
+            } catch (err) {
+                console.error("Failed to send confirmation email:", err);
+            }
+        }
+
+        // STEP 6: Separate WhatsApp Confirmation
+        if (lead.phone && channel === 'website') {
+             try {
+                const whatsappMsg = `Hi ${lead.fullName}, this is Val. Just confirming I've locked in your ${lead.service} appointment for ${lead.preferredDate} at ${lead.preferredTime}. See you then!`;
+                await sendWhatsAppMessageForTenant(tenantId, lead.phone, whatsappMsg);
+                bookingRecord.whatsappSent = true;
+             } catch (err) {
+                console.error("Failed to send WhatsApp confirmation:", err);
+             }
         }
     }
 
     await appendTenantLog(tenantId, "bookings.json", bookingRecord);
-
     return bookingRecord;
 }
 
@@ -1465,21 +1501,25 @@ if (session.history.length === 0 || session.history[0].role !== "system") {
 
     try {
         session.nextQuestion = null;
-        if (session.conversationState === "BOOKING") {
+if (session.conversationState === "BOOKING") {
             if (!session.lead.service) session.nextQuestion = "service";
-            else if (!session.lead.preferredDate) session.nextQuestion = "preferredDate";
-            else if (!session.lead.preferredTime) session.nextQuestion = "preferredTime";
             else if (!session.lead.fullName) session.nextQuestion = "fullName";
             else if (!session.lead.phone) session.nextQuestion = "phone";
             else if (!session.lead.email) session.nextQuestion = "email";
             else session.nextQuestion = "complete";
         }
 
-const bookingSystemMessage = {
-            role: "system",
-            content: `Current conversation state: BOOKING\nService: ${session.lead.service || "missing"}\nDate: ${session.lead.preferredDate || "missing"}\nTime: ${session.lead.preferredTime || "missing"}\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nDo NOT greet the visitor or introduce yourself. You already did that earlier in this conversation. Just ask for the next missing field listed above.`
-        };
+let bookingInstruction = `Current conversation state: BOOKING\nService: ${session.lead.service || "missing"}\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nDo NOT greet the visitor or introduce yourself. You already did that earlier in this conversation. Just ask for the next missing field listed above.`;
 
+        // Tell Val to use the safe word when it has everything it needs
+        if (session.nextQuestion === "complete") {
+            bookingInstruction = `All required booking information has been collected. You are strictly forbidden from confirming the appointment yourself. You MUST reply with EXACTLY this word and nothing else: [SEND_CALENDAR_LINK]`;
+        }
+
+        const bookingSystemMessage = {
+            role: "system",
+            content: bookingInstruction
+        };
         const messagesForGroq = session.conversationState === "BOOKING" ? [...session.history, bookingSystemMessage] : session.history;
 
         const response = await groq.chat.completions.create({
@@ -1494,41 +1534,33 @@ const bookingSystemMessage = {
             session.analysis = { buyerProfile: metaMatch[1], objectionType: metaMatch[2], concessionStep: metaMatch[3] };
         }
 
-let cleanReply = fullReply
-    .replace(/\[\[.*?\]\]/g, "")
-    .replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]/g, "")
-    .trim();
+        let cleanReply = fullReply
+            .replace(/\[\[.*?\]\]/g, "")
+            .replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]|\[SEND_CALENDAR_LINK\]/g, "")
+            .trim();
 
-// Override the AI reply if we're completing a human handoff.
-if (session.pendingReply) {
-    cleanReply = session.pendingReply;
-    session.pendingReply = null;
-}
+        if (session.pendingReply) {
+            cleanReply = session.pendingReply;
+            session.pendingReply = null;
+        }
 
-const bookingComplete =
-    session.lead.service &&
-    session.lead.preferredDate &&
-    session.lead.preferredTime &&
-    session.lead.fullName &&
-    session.lead.phone &&
-    session.lead.email;
+        // STEP 3: The Interceptor checks for the Calendar Link Trigger
+        const isReadyForCalendar = fullReply.includes("[SEND_CALENDAR_LINK]");
 
-if (bookingComplete && !session.lead.saved) {
-    session.lead.saved = true;
+        if (isReadyForCalendar && !session.lead.saved) {
+            session.lead.saved = true;
 
-    await appendTenantLog(tenantId, "leads.json", {
-        timestamp: new Date().toISOString(),
-        ...session.lead
-    });
+            await appendTenantLog(tenantId, "leads.json", {
+                timestamp: new Date().toISOString(),
+                ...session.lead,
+                sessionId: session.id 
+            });
 
-    const bookingResult = await executeBooking(tenantId, session.lead, channel);
+            const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+            const bookingUrl = `${baseUrl}/book/${tenantId}/${session.id}`;
 
-    if (bookingResult.calendarEventCreated) {
-        cleanReply = `Your booking is confirmed for ${session.lead.preferredDate} at ${session.lead.preferredTime}. Anything else I can help with?`;
-    } else {
-        cleanReply = `I've saved your booking request for ${session.lead.preferredDate} at ${session.lead.preferredTime}. Our team will confirm it with you shortly. Is there anything else I can help with?`;
-    }
-}
+            cleanReply = `Perfect! I have all your details. Please pick a time that works for you on our live calendar here:\n\n📅 ${bookingUrl}`;
+        }
         const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
         if (sentences && sentences.length > 3) cleanReply = sentences.slice(0, 3).join(" ").trim();
 
@@ -1551,6 +1583,137 @@ app.post('/api/chat', async (req, res) => {
     const { sessionId, message } = req.body;
     const responseText = await processValMessage(tenantId, sessionId, message, "website");
     res.json({ response: responseText || "" });
+});
+
+// ====================================
+// GOOGLE CALENDAR FREE/BUSY API & UI
+// ====================================
+
+app.get('/api/calendar/slots/:tenantId', async (req, res) => {
+    const { tenantId } = req.params;
+    const { date } = req.query;
+
+    try {
+        const availableSlots = await getAvailableSlots(tenantId, date);
+        res.json(availableSlots);
+    } catch (error) {
+        console.error("Error fetching live slots:", error);
+        res.status(500).json([]); 
+    }
+});
+
+app.get('/book/:tenantId/:sessionId', async (req, res) => {
+    const { tenantId, sessionId } = req.params;
+    
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[sessionId];
+    
+    if (!session || !session.lead) {
+        return res.status(404).send("Booking session expired or not found.");
+    }
+
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Select a Time</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; background: #f9f9f9; }
+            .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            h2 { margin-top: 0; font-size: 20px; }
+            label { font-weight: bold; display: block; margin: 15px 0 5px; font-size: 14px; }
+            input, select { width: 100%; padding: 12px; margin-bottom: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+            button { background: #000; color: #fff; padding: 15px; width: 100%; border: none; font-size: 16px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+            button:disabled { background: #ccc; cursor: not-allowed; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2>📅 Book: ${session.lead.service}</h2>
+            <p style="color: #555; font-size: 14px;">Hi ${session.lead.fullName}, please select a date to see live availability.</p>
+            
+            <form action="/book/confirm" method="POST">
+                <input type="hidden" name="tenantId" value="${tenantId}">
+                <input type="hidden" name="sessionId" value="${sessionId}">
+                
+                <label>Select Date:</label>
+                <input type="date" id="datePicker" name="date" required>
+                
+                <label>Select Time:</label>
+                <select id="timeSelect" name="time" required disabled>
+                    <option value="">Choose a date first...</option>
+                </select>
+                
+                <button type="submit" id="submitBtn" disabled>Confirm Booking</button>
+            </form>
+        </div>
+
+        <script>
+            const datePicker = document.getElementById('datePicker');
+            const timeSelect = document.getElementById('timeSelect');
+            const submitBtn = document.getElementById('submitBtn');
+
+            const today = new Date();
+            datePicker.min = today.toISOString().split("T")[0];
+
+            datePicker.addEventListener('change', async (e) => {
+                const selectedDate = e.target.value;
+                
+                timeSelect.innerHTML = '<option value="">Searching live calendar...</option>';
+                timeSelect.disabled = true;
+                submitBtn.disabled = true;
+
+                try {
+                    const response = await fetch('/api/calendar/slots/${tenantId}?date=' + selectedDate);
+                    const slots = await response.json();
+
+                    timeSelect.innerHTML = '';
+                    
+                    if (slots.length === 0) {
+                        timeSelect.innerHTML = '<option value="">No times available this day</option>';
+                    } else {
+                        timeSelect.innerHTML = '<option value="">Select a time...</option>';
+                        slots.forEach(slot => {
+                            const opt = document.createElement('option');
+                            opt.value = slot;
+                            opt.textContent = slot;
+                            timeSelect.appendChild(opt);
+                        });
+                        timeSelect.disabled = false;
+                    }
+                } catch (err) {
+                    timeSelect.innerHTML = '<option value="">Error loading times</option>';
+                }
+            });
+
+            timeSelect.addEventListener('change', (e) => {
+                submitBtn.disabled = !e.target.value;
+            });
+        </script>
+    </body>
+    </html>
+    `;
+    
+    res.send(html);
+});
+
+app.post('/book/confirm', async express.urlencoded({ extended: true }), async (req, res) => {
+    const { tenantId, sessionId, date, time } = req.body;
+    
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[sessionId];
+    
+    if (session && session.lead) {
+        session.lead.preferredDate = date;
+        session.lead.preferredTime = time;
+        
+        await executeBooking(tenantId, session.lead, session.channel);
+        
+        res.send("<h2>✅ Booking Confirmed!</h2><p>You can close this window. We've sent a confirmation to your email and WhatsApp.</p>");
+    } else {
+        res.status(400).send("Session expired.");
+    }
 });
 
 // ====================================
