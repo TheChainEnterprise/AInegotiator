@@ -9,9 +9,10 @@ const path = require("path");
 const nodemailer = require('nodemailer');
 const moment = require('moment');
 
-// Set up the email transporter
+// Set up the email transporter with family: 4 to resolve ENETUNREACH on Render
 const emailTransporter = nodemailer.createTransport({
     service: 'gmail',
+    family: 4,
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -144,7 +145,10 @@ const logAudit = async (tenantId, sessionId, input, output, analysis) => {
     await appendTenantLog(tenantId, "audit.json", auditEntry);
 };
 
-// API ROUTES
+// ====================================
+// API ROUTES & RESTORED ADMIN ENDPOINTS
+// ====================================
+
 app.get('/api/leads', async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
     const leads = await getTenantLog(tenantId, "leads.json");
@@ -167,7 +171,88 @@ app.get('/api/clients', async (req, res) => {
     res.json(Object.values(sessionVault).map(c => ({ id: c.id, name: c.name, label: c.label, price: c.price, status: c.status, analysis: c.analysis })));
 });
 
-// ROBUST FINALIZE BOOKING WITH GUARANTEED EMAIL
+// RESTORED UNIFIED INBOX & CONVERSATIONS API
+app.get("/api/admin/conversations", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const channel = req.query.channel || "website";
+
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+
+    const list = Object.values(sessionVault)
+        .filter(s => (s.channel || "website") === channel)
+        .map(s => {
+            const lastMsg = (s.history || []).filter(h => h.role !== "system").slice(-1)[0];
+            return {
+                sessionId: s.id,
+                name: s.lead?.fullName || s.name || s.id,
+                phone: s.lead?.phone || (channel === "whatsapp" ? s.id : ""),
+                status: s.status,
+                lastMessage: lastMsg?.content || "",
+                lastRole: lastMsg?.role || "",
+                lastUpdated: s.lastUpdated || "",
+                startedAt: s.startedAt || ""
+            };
+        });
+
+    res.json(list);
+});
+
+app.get("/api/admin/conversations/:sessionId", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[req.params.sessionId];
+
+    if (!session) return res.status(404).json({ error: "Conversation not found." });
+
+    res.json({
+        sessionId: session.id,
+        channel: session.channel || "website",
+        status: session.status,
+        lead: session.lead,
+        startedAt: session.startedAt || "",
+        lastUpdated: session.lastUpdated || "",
+        messages: (session.history || []).filter(h => h.role !== "system")
+    });
+});
+
+app.post("/api/admin/conversations/:sessionId/reply", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const { message } = req.body;
+
+    if (!message) return res.status(400).json({ error: "Message is required." });
+
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[req.params.sessionId];
+
+    if (!session) return res.status(404).json({ error: "Conversation not found." });
+
+    session.status = "Manual Override";
+    session.history.push({ role: "assistant", content: message });
+    session.lastUpdated = new Date().toISOString();
+    await setTenantFile(tenantId, "vault.json", sessionVault);
+
+    if ((session.channel || "website") === "whatsapp") {
+        await sendWhatsAppMessageForTenant(tenantId, session.id, message);
+    }
+
+    res.json({ success: true });
+});
+
+app.delete("/api/admin/conversations/:sessionId", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+
+    if (!sessionVault[req.params.sessionId]) {
+        return res.status(404).json({ error: "Conversation not found." });
+    }
+
+    delete sessionVault[req.params.sessionId];
+    await setTenantFile(tenantId, "vault.json", sessionVault);
+
+    res.json({ success: true });
+});
+
+// ROBUST FINALIZE BOOKING WITH GUARANTEED EMAIL & VAULT PERSISTENCE
 async function finalizeBooking(tenantId, session, date, time) {
     const startTime = new Date(`${date}T${time}:00`).toISOString();
     const endTime = new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString();
@@ -227,7 +312,7 @@ async function finalizeBooking(tenantId, session, date, time) {
     return bookingRecord;
 }
 
-// NATURAL DYNAMIC CONVERSATION ENGINE
+// NATURAL DYNAMIC CONVERSATION ENGINE (WITH FULL VAULT & CONVERSATION SAVING)
 const processValMessage = async (tenantId, sessionId, messageText, channel = "website") => {
     let sessionVault = await getTenantFile(tenantId, "vault.json", null);
     if (!sessionVault) sessionVault = INITIAL_VAULT;
@@ -260,12 +345,11 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         session.lead.fullName = nameMatch[1];
         session.name = nameMatch[1];
     } else if (!session.lead.fullName && session.history.length === 2 && messageText.trim().split(/\s+/).length <= 3 && !messageText.includes("@")) {
-        // If it's early in conversation and looks like a name reply
         session.lead.fullName = messageText.trim();
         session.name = messageText.trim();
     }
 
-    // WhatsApp Direct Slot Selection Parser (Supports natural time replies like "13:00" or "1")
+    // WhatsApp Direct Slot Selection Parser (Supports natural time replies)
     if (channel === "whatsapp" && session.waitingForSlotSelection && session.offeredSlots) {
         const trimmed = messageText.trim();
         let chosenSlot = null;
@@ -300,11 +384,10 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         const response = await groq.chat.completions.create({ model: "llama-3.1-8b-instant", messages: session.history, temperature: 0.6 });
         let fullReply = response.choices[0].message.content;
 
-        // Check if Val thinks we have everything and are ready to trigger the booking widget/flow
         const hasAllInfo = session.lead.fullName && session.lead.phone && session.lead.email;
         
         if (channel === "whatsapp" && (fullReply.includes("book") || hasAllInfo) && !session.lead.preferredDate) {
-            session.lead.preferredDate = moment().add(1, 'days').format("YYYY-MM-DD"); // Default next day or ask
+            session.lead.preferredDate = moment().add(1, 'days').format("YYYY-MM-DD");
             const slots = await getAvailableSlots(tenantId, session.lead.preferredDate);
             session.offeredSlots = slots.length > 0 ? slots : ["10:00", "11:00", "13:00", "14:00", "15:00"];
             session.waitingForSlotSelection = true;
@@ -315,7 +398,6 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
 
         let cleanReply = fullReply.replace(/\[\[.*?\]\]/g, "").trim();
 
-        // If user is ready on website, append modal trigger tag
         if (channel === "website" && hasAllInfo && (fullReply.toLowerCase().includes("book") || messageText.toLowerCase().includes("book") || session.lead.savedBookingTrigger)) {
             session.lead.savedBookingTrigger = true;
             cleanReply = `Perfect, I have all your details! Please select your appointment time from the calendar popup below.`;
