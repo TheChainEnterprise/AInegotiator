@@ -11,8 +11,8 @@ const moment = require('moment');
 
 // Set up the email transporter with family: 4 to resolve ENETUNREACH on Render
 const emailTransporter = nodemailer.createTransport({
-    service: 'gmail',
-    family: 4,
+    service: 'gmail', // Reverted back to the reliable 'service' string
+    family: 4,        // Forces IPv4 on Render to prevent network drops
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
@@ -547,7 +547,7 @@ app.delete("/api/admin/conversations/:sessionId", async (req, res) => {
     res.json({ success: true });
 });
 
-// ROBUST FINALIZE BOOKING WITH GUARANTEED EMAIL & VAULT PERSISTENCE
+// ROBUST FINALIZE BOOKING WITH GUARANTEED EMAIL NOTIFICATIONS & LOGGING
 async function finalizeBooking(tenantId, session, date, time) {
     const startTime = new Date(`${date}T${time}:00`).toISOString();
     const endTime = new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString();
@@ -579,11 +579,14 @@ async function finalizeBooking(tenantId, session, date, time) {
 
     await appendTenantLog(tenantId, "bookings.json", bookingRecord);
 
-    if (session.lead?.email) {
+    const clientEmail = session.lead?.email;
+    console.log(`[EMAIL DISPATCH] Attempting to send Client Confirmation to: ${clientEmail || "NONE FOUND"}`);
+
+    if (clientEmail) {
         try {
-            await emailTransporter.sendMail({
+            const info = await emailTransporter.sendMail({
                 from: `"The Chain" <${process.env.SMTP_USER}>`,
-                to: session.lead.email,
+                to: clientEmail,
                 subject: `Booking Confirmed: ${bookingRecord.service}`,
                 html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 25px; border: 1px solid #eaeaea; border-radius: 10px; background: #ffffff;">
@@ -598,10 +601,43 @@ async function finalizeBooking(tenantId, session, date, time) {
                     </div>
                 `
             });
-            console.log("Confirmation email successfully dispatched to:", session.lead.email);
+            console.log(`[EMAIL SUCCESS] Client confirmation sent successfully! Message ID: ${info.messageId}`);
         } catch (mailErr) {
-            console.error("CRITICAL EMAIL ERROR:", mailErr);
+            console.error("[CRITICAL CLIENT EMAIL ERROR]:", mailErr.message);
+            console.error(mailErr);
         }
+    } else {
+        console.warn("[EMAIL WARNING] Skipped sending client email because session.lead.email was empty.");
+    }
+
+    try {
+        const business = await getTenantFile(tenantId, "business.json", null);
+        const alertEmail = business?.email || process.env.SMTP_USER;
+        
+        console.log(`[EMAIL DISPATCH] Attempting to send Admin Alert to: ${alertEmail}`);
+        
+        if (alertEmail) {
+            const info = await emailTransporter.sendMail({
+                from: `"The Chain System" <${process.env.SMTP_USER}>`,
+                to: alertEmail,
+                subject: `New Booking Alert: ${bookingRecord.service} - ${bookingRecord.fullName}`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; padding: 20px;">
+                        <h2>New Appointment Booked</h2>
+                        <p><strong>Client:</strong> ${bookingRecord.fullName}</p>
+                        <p><strong>Service:</strong> ${bookingRecord.service}</p>
+                        <p><strong>Date:</strong> ${date}</p>
+                        <p><strong>Time:</strong> ${time}</p>
+                        <p><strong>Phone:</strong> ${bookingRecord.phone}</p>
+                        <p><strong>Email:</strong> ${bookingRecord.email}</p>
+                        <p><strong>Channel:</strong> ${bookingRecord.channel}</p>
+                    </div>
+                `
+            });
+            console.log(`[EMAIL SUCCESS] Admin alert sent successfully! Message ID: ${info.messageId}`);
+        }
+    } catch (alertErr) {
+        console.error("[CRITICAL ADMIN ALERT EMAIL ERROR]:", alertErr.message);
     }
 
     return bookingRecord;
