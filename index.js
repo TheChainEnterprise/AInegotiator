@@ -61,6 +61,7 @@ app.use(cors({ origin: '*' }));
 const PORT = process.env.PORT || 3001;
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true })); // <-- ADDED THIS
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(whatsappRoutes);
 app.use(manualMessageRoutes);
@@ -1698,7 +1699,7 @@ app.get('/book/:tenantId/:sessionId', async (req, res) => {
     res.send(html);
 });
 
-app.post('/book/confirm', async express.urlencoded({ extended: true }), async (req, res) => {
+app.post('/book/confirm', async (req, res) => {
     const { tenantId, sessionId, date, time } = req.body;
     
     const sessionVault = await getTenantFile(tenantId, "vault.json", {});
