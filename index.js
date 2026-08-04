@@ -11,11 +11,11 @@ const moment = require('moment');
 
 // Set up the email transporter
 const emailTransporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
+    service: 'gmail',
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+    },
 });
 
 // CHANGED: connectDB starts the shared database connection at server startup
@@ -23,27 +23,27 @@ const { connectDB } = require("./engine/db");
 
 // CHANGED: these are now async, MongoDB-backed functions instead of filesystem paths
 const {
-    getTenantFile,
-    setTenantFile,
-    deleteTenantFile,
-    deleteTenantData,
-    appendTenantLog,
-    getTenantLog,
-    updateTenantLogEntry,
-    deleteTenantLogEntry,
-    listTenantIds,
+    getTenantFile,
+    setTenantFile,
+    deleteTenantFile,
+    deleteTenantData,
+    appendTenantLog,
+    getTenantLog,
+    updateTenantLogEntry,
+    deleteTenantLogEntry,
+    listTenantIds,
 } = require("./engine/tenants");
 
 const {
-    retrieveRelevantKnowledge,
+    retrieveRelevantKnowledge,
 } = require("./engine/retrieval");
 
 const {
-    crawlWebsite,
+    crawlWebsite,
 } = require("./engine/crawler");
 
 const {
-    processWebsiteContent,
+    processWebsiteContent,
 } = require("./engine/importProcessor");
 
 const whatsappRoutes = require("./routes/whatsapp");
@@ -75,42 +75,42 @@ const simulateThinking = () => Promise.resolve();
 
 const updateCalendarSync = async (tenantId) => {
 
-    const config = JSON.parse(
-        fs.readFileSync(
-            path.join(__dirname, "config.json"),
-            "utf8"
-        )
-    );
+    const config = JSON.parse(
+        fs.readFileSync(
+            path.join(__dirname, "config.json"),
+            "utf8"
+        )
+    );
 
-    const calendarUrl =
-        config.CLIENT_CALENDARS?.[tenantId];
+    const calendarUrl =
+        config.CLIENT_CALENDARS?.[tenantId];
 
-    if (!calendarUrl) return;
+    if (!calendarUrl) return;
 
-    try {
+    try {
 
-        const response = await fetch(calendarUrl);
-        const data = await response.json();
+        const response = await fetch(calendarUrl);
+        const data = await response.json();
 
-        // CHANGED: was fs.writeFileSync to availability.json
-        await setTenantFile(tenantId, "availability.json", { availableSlots: data });
+        // CHANGED: was fs.writeFileSync to availability.json
+        await setTenantFile(tenantId, "availability.json", { availableSlots: data });
 
-    } catch (err) {
+    } catch (err) {
 
-        console.error(
-            `Calendar sync failed for ${tenantId}:`,
-            err
-        );
+        console.error(
+            `Calendar sync failed for ${tenantId}:`,
+            err
+        );
 
-    }
+    }
 
 };
 
 // CHANGED: now async, reads from MongoDB instead of the filesystem
 const getAvailability = async (tenantId) => {
 
-    const doc = await getTenantFile(tenantId, "availability.json", { availableSlots: [] });
-    return doc.availableSlots || [];
+    const doc = await getTenantFile(tenantId, "availability.json", { availableSlots: [] });
+    return doc.availableSlots || [];
 
 };
 
@@ -122,49 +122,49 @@ const getAvailability = async (tenantId) => {
 
 const sendAlert = (tenantId, message) => {
 
-    const config = JSON.parse(
-        fs.readFileSync(
-            path.join(__dirname, "config.json"),
-            "utf8"
-        )
-    );
+    const config = JSON.parse(
+        fs.readFileSync(
+            path.join(__dirname, "config.json"),
+            "utf8"
+        )
+    );
 
-    const webhooks =
-        config.CLIENT_ALERTS || {};
+    const webhooks =
+        config.CLIENT_ALERTS || {};
 
-    const businessWebhook =
-        webhooks[tenantId];
+    const businessWebhook =
+        webhooks[tenantId];
 
-    const adminWebhook = process.env.TELEGRAM_ALERT_WEBHOOK;
+    const adminWebhook = process.env.TELEGRAM_ALERT_WEBHOOK;
 
-    const destinations = [
-        businessWebhook,
-        adminWebhook,
-    ];
+    const destinations = [
+        businessWebhook,
+        adminWebhook,
+    ];
 
-    const fullMessage =
-        `🚨 THE CHAIN ALERT (${tenantId})\n\n${message}`;
+    const fullMessage =
+        `🚨 THE CHAIN ALERT (${tenantId})\n\n${message}`;
 
-    for (const url of destinations) {
+    for (const url of destinations) {
 
-        if (!url) continue;
+        if (!url) continue;
 
-        fetch(
-            url + encodeURIComponent(fullMessage),
-            {
-                method: "POST",
-            }
-        ).catch(console.error);
+        fetch(
+            url + encodeURIComponent(fullMessage),
+            {
+                method: "POST",
+            }
+        ).catch(console.error);
 
-    }
+    }
 
 };
 
 // PHASE 4: Telemetry Node Configuration
 const INITIAL_VAULT = {
-  "client-xyz": { id: "client-xyz", name: "Sarah Jenkins", label: "Skincare Inquiry", price: 1000, status: "Active", history: [], analysis: { buyerProfile: "Analyzing...", objectionType: "None", concessionStep: "Baseline Stable" } },
-  "client-abc": { id: "client-abc", name: "Marcus Vance", label: "Botox Consultation", price: 1200, status: "Active", history: [], analysis: { buyerProfile: "High Net Worth", objectionType: "None", concessionStep: "Baseline Stable" } },
-  "client-123": { id: "client-123", name: "Elena Rostova", label: "Laser Resurfacing", price: 950, status: "Active", history: [], analysis: { buyerProfile: "Decisive Buyer", objectionType: "None", concessionStep: "Baseline Stable" } }
+  "client-xyz": { id: "client-xyz", name: "Sarah Jenkins", label: "Skincare Inquiry", price: 1000, status: "Active", history: [], analysis: { buyerProfile: "Analyzing...", objectionType: "None", concessionStep: "Baseline Stable" } },
+  "client-abc": { id: "client-abc", name: "Marcus Vance", label: "Botox Consultation", price: 1200, status: "Active", history: [], analysis: { buyerProfile: "High Net Worth", objectionType: "None", concessionStep: "Baseline Stable" } },
+  "client-123": { id: "client-123", name: "Elena Rostova", label: "Laser Resurfacing", price: 950, status: "Active", history: [], analysis: { buyerProfile: "Decisive Buyer", objectionType: "None", concessionStep: "Baseline Stable" } }
 };
 
 // Global Configs — static, unchanged
@@ -177,109 +177,109 @@ const { CONTRACT_RULES, TRAINING_ENABLED } = config;
 // CHANGED: this whole function is now async, since it reads tenant data from MongoDB
 
 const buildSystemPrompt = async (
-    tenantId,
-    userMessage = ""
+    tenantId,
+    userMessage = ""
 ) => {
 
-    const defaultBusiness = {
-        businessName: "Business",
-        industry: "",
-        description: "",
-        website: "",
-        email: "",
-        phone: "",
-        whatsapp: "",
-        address: "",
-        bookingUrl: "",
-        openingHours: {},
-        tone: "Professional"
-    };
+    const defaultBusiness = {
+        businessName: "Business",
+        industry: "",
+        description: "",
+        website: "",
+        email: "",
+        phone: "",
+        whatsapp: "",
+        address: "",
+        bookingUrl: "",
+        openingHours: {},
+        tone: "Professional"
+    };
 
-    // CHANGED: load business + services + faq + knowledge from MongoDB in parallel
-    const [business, services, faq, knowledge] = await Promise.all([
-        getTenantFile(tenantId, "business.json", defaultBusiness),
-        getTenantFile(tenantId, "services.json", []),
-        getTenantFile(tenantId, "faq.json", []),
-        getTenantFile(tenantId, "knowledge.json", [])
-    ]);
+    // CHANGED: load business + services + faq + knowledge from MongoDB in parallel
+    const [business, services, faq, knowledge] = await Promise.all([
+        getTenantFile(tenantId, "business.json", defaultBusiness),
+        getTenantFile(tenantId, "services.json", []),
+        getTenantFile(tenantId, "faq.json", []),
+        getTenantFile(tenantId, "knowledge.json", [])
+    ]);
 
-    // ====================================
-    // Load Business Knowledge
-    // ====================================
-    // CHANGED: retrieval.js no longer touches disk itself — we pass the
-    // already-loaded arrays straight in.
+    // ====================================
+    // Load Business Knowledge
+    // ====================================
+    // CHANGED: retrieval.js no longer touches disk itself — we pass the
+    // already-loaded arrays straight in.
 
-    const retrieved = retrieveRelevantKnowledge({
-        services,
-        faq,
-        knowledge,
-        message: userMessage,
-        limit: 5
-    });
+    const retrieved = retrieveRelevantKnowledge({
+        services,
+        faq,
+        knowledge,
+        message: userMessage,
+        limit: 5
+    });
 
-    const retrievedServices = retrieved
-        .filter(r => r.source === "services.json")
-        .map(r => r.item);
+    const retrievedServices = retrieved
+        .filter(r => r.source === "services.json")
+        .map(r => r.item);
 
-    const retrievedFaq = retrieved
-        .filter(r => r.source === "faq.json")
-        .map(r => r.item);
+    const retrievedFaq = retrieved
+        .filter(r => r.source === "faq.json")
+        .map(r => r.item);
 
-    const retrievedKnowledge = retrieved
-        .filter(r => r.source === "knowledge.json")
-        .map(r => r.item);
+    const retrievedKnowledge = retrieved
+        .filter(r => r.source === "knowledge.json")
+        .map(r => r.item);
 
-    console.log("========== RETRIEVAL ==========");
-    console.log("User:", userMessage);
+    console.log("========== RETRIEVAL ==========");
+    console.log("User:", userMessage);
 
-    console.log(
-        retrieved.map(result => ({
-            source: result.source,
-            title:
-                result.item.title ||
-                result.item.question ||
-                result.item.name
-        }))
-    );
+    console.log(
+        retrieved.map(result => ({
+            source: result.source,
+            title:
+                result.item.title ||
+                result.item.question ||
+                result.item.name
+        }))
+    );
 
-    console.log("===============================");
+    console.log("===============================");
 
-    // Playbooks are static repo files, not per-tenant data — unchanged, still fs-based
-    const manifestPath = path.join(
-        __dirname,
-        "playbooks",
-        "manifest.json"
-    );
+    // Playbooks are static repo files, not per-tenant data — unchanged, still fs-based
+    const manifestPath = path.join(
+        __dirname,
+        "playbooks",
+        "manifest.json"
+    );
 
-    let activeVersion = "v1";
+    let activeVersion = "v1";
 
-    if (fs.existsSync(manifestPath)) {
+    if (fs.existsSync(manifestPath)) {
 
-        activeVersion = JSON.parse(
-            fs.readFileSync(
-                manifestPath,
-                "utf8"
-            )
-        ).activeVersion;
+        activeVersion = JSON.parse(
+            fs.readFileSync(
+                manifestPath,
+                "utf8"
+            )
+        ).activeVersion;
 
-    }
+    }
 
-    const patchPath = path.join(
-        __dirname,
-        "playbooks",
-        `patch_${activeVersion}.json`
-    );
+    const patchPath = path.join(
+        __dirname,
+        "playbooks",
+        `patch_${activeVersion}.json`
+    );
 
-    const learnedRules = fs.existsSync(patchPath)
-        ? JSON.parse(
-            fs.readFileSync(
-                patchPath,
-                "utf8"
-            )
-        ).dynamicRules || []
-        : [];
+    const learnedRules = fs.existsSync(patchPath)
+        ? JSON.parse(
+            fs.readFileSync(
+                patchPath,
+                "utf8"
+            )
+        ).dynamicRules || []
+        : [];
 
-    return `
+    return `
 
 You are Val, the AI representative for ${business.businessName}.
 
@@ -466,14 +466,14 @@ Always finish with:
 
 // CHANGED: now async — appends to MongoDB instead of a local file
 const logDealSuccess = async (tenantId, session) => {
-    const successEntry = { timestamp: new Date().toISOString(), client: session.name, finalPrice: session.price, analysis: session.analysis };
-    await appendTenantLog(tenantId, "deals.json", successEntry);
+    const successEntry = { timestamp: new Date().toISOString(), client: session.name, finalPrice: session.price, analysis: session.analysis };
+    await appendTenantLog(tenantId, "deals.json", successEntry);
 };
 
 // CHANGED: now async — appends to MongoDB instead of a local file
 const logAudit = async (tenantId, sessionId, input, output, analysis) => {
-    const auditEntry = { timestamp: new Date().toISOString(), sessionId, input, output, analysis };
-    await appendTenantLog(tenantId, "audit.json", auditEntry);
+    const auditEntry = { timestamp: new Date().toISOString(), sessionId, input, output, analysis };
+    await appendTenantLog(tenantId, "audit.json", auditEntry);
 };
 
 // API ENDPOINTS
@@ -482,76 +482,76 @@ const logAudit = async (tenantId, sessionId, input, output, analysis) => {
 // instead of fs.readFileSync / fs.writeFileSync / fs.appendFileSync.
 
 app.get('/api/leads', async (req, res) => {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
-    const leads = await getTenantLog(tenantId, "leads.json");
-    res.json(leads);
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    const leads = await getTenantLog(tenantId, "leads.json");
+    res.json(leads);
 });
 
 app.delete("/api/leads/:id", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const targetId = Number(req.params.id);
-    await deleteTenantLogEntry(tenantId, "leads.json", targetId);
-    res.json({ success: true });
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const targetId = Number(req.params.id);
+    await deleteTenantLogEntry(tenantId, "leads.json", targetId);
+    res.json({ success: true });
 });
 
 app.post("/api/leads", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const lead = {
-        id: Date.now(),
-        ...req.body
-    };
-    await appendTenantLog(tenantId, "leads.json", lead);
-    res.json({ success: true, lead });
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const lead = {
+        id: Date.now(),
+        ...req.body
+    };
+    await appendTenantLog(tenantId, "leads.json", lead);
+    res.json({ success: true, lead });
 });
 
 app.put("/api/leads/:id", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const targetId = Number(req.params.id);
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const targetId = Number(req.params.id);
 
-    // Force the existing id to be kept, same as the original behavior
-    const { id, ...updates } = req.body;
+    // Force the existing id to be kept, same as the original behavior
+    const { id, ...updates } = req.body;
 
-    const updated = await updateTenantLogEntry(tenantId, "leads.json", targetId, updates);
+    const updated = await updateTenantLogEntry(tenantId, "leads.json", targetId, updates);
 
-    if (!updated) return res.status(404).json({ error: "Lead not found" });
+    if (!updated) return res.status(404).json({ error: "Lead not found" });
 
-    res.json({ success: true });
+    res.json({ success: true });
 });
 
 app.get("/api/bookings", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const bookings = await getTenantLog(tenantId, "bookings.json");
-    res.json(bookings);
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const bookings = await getTenantLog(tenantId, "bookings.json");
+    res.json(bookings);
 });
 
 app.post("/api/bookings", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const booking = {
-        id: Date.now(),
-        ...req.body
-    };
-    await appendTenantLog(tenantId, "bookings.json", booking);
-    res.json({ success: true, booking });
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const booking = {
+        id: Date.now(),
+        ...req.body
+    };
+    await appendTenantLog(tenantId, "bookings.json", booking);
+    res.json({ success: true, booking });
 });
 
 app.delete("/api/bookings/:id", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const targetId = Number(req.params.id);
-    await deleteTenantLogEntry(tenantId, "bookings.json", targetId);
-    res.json({ success: true });
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const targetId = Number(req.params.id);
+    await deleteTenantLogEntry(tenantId, "bookings.json", targetId);
+    res.json({ success: true });
 });
 
 app.put("/api/bookings/:id", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const targetId = Number(req.params.id);
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const targetId = Number(req.params.id);
 
-    const { id, ...updates } = req.body;
+    const { id, ...updates } = req.body;
 
-    const updated = await updateTenantLogEntry(tenantId, "bookings.json", targetId, updates);
+    const updated = await updateTenantLogEntry(tenantId, "bookings.json", targetId, updates);
 
-    if (!updated) return res.status(404).json({ error: "Booking not found." });
+    if (!updated) return res.status(404).json({ error: "Booking not found." });
 
-    res.json({ success: true, booking: updated });
+    res.json({ success: true, booking: updated });
 });
 
 // ====================================
@@ -560,89 +560,89 @@ app.put("/api/bookings/:id", async (req, res) => {
 
 app.get("/api/admin/clients", async (req, res) => {
 
-    const tenantIds = await listTenantIds();
+    const tenantIds = await listTenantIds();
 
-    const clients = await Promise.all(
-        tenantIds.map(async (tenantId) => {
-            const business = await getTenantFile(tenantId, "business.json", null);
-            if (!business) return null;
-            return { id: tenantId, ...business };
-        })
-    );
+    const clients = await Promise.all(
+        tenantIds.map(async (tenantId) => {
+            const business = await getTenantFile(tenantId, "business.json", null);
+            if (!business) return null;
+            return { id: tenantId, ...business };
+        })
+    );
 
-    res.json(clients.filter(Boolean));
+    res.json(clients.filter(Boolean));
 
 });
 
 app.post("/api/admin/clients", async (req, res) => {
 
-    const {
-        id,
-        businessName,
-        industry,
-        website,
-        email,
-        phone
-    } = req.body;
+    const {
+        id,
+        businessName,
+        industry,
+        website,
+        email,
+        phone
+    } = req.body;
 
-    if (!id || !businessName) {
-        return res.status(400).json({
-            error: "Missing client information."
-        });
-    }
+    if (!id || !businessName) {
+        return res.status(400).json({
+            error: "Missing client information."
+        });
+    }
 
-    const existing = await getTenantFile(id, "business.json", null);
+    const existing = await getTenantFile(id, "business.json", null);
 
-    if (existing) {
-        return res.status(409).json({
-            error: "Client already exists."
-        });
-    }
+    if (existing) {
+        return res.status(409).json({
+            error: "Client already exists."
+        });
+    }
 
-    await setTenantFile(id, "business.json", {
-        businessName,
-        industry,
-        website,
-        email,
-        phone,
-        description: "",
-        address: "",
-        whatsapp: phone,
-        bookingUrl: "",
-        tone: "Professional",
-        openingHours: {}
-    });
+    await setTenantFile(id, "business.json", {
+        businessName,
+        industry,
+        website,
+        email,
+        phone,
+        description: "",
+        address: "",
+        whatsapp: phone,
+        bookingUrl: "",
+        tone: "Professional",
+        openingHours: {}
+    });
 
-    await setTenantFile(id, "services.json", []);
-    await setTenantFile(id, "faq.json", []);
-    await setTenantFile(id, "knowledge.json", []);
-    await setTenantFile(id, "availability.json", { availableSlots: [] });
-    await setTenantFile(id, "vault.json", {});
+    await setTenantFile(id, "services.json", []);
+    await setTenantFile(id, "faq.json", []);
+    await setTenantFile(id, "knowledge.json", []);
+    await setTenantFile(id, "availability.json", { availableSlots: [] });
+    await setTenantFile(id, "vault.json", {});
 
-    // Note: leads/bookings/audit/deals need no setup — getTenantLog
-    // simply returns an empty array until the first entry is appended.
+    // Note: leads/bookings/audit/deals need no setup — getTenantLog
+    // simply returns an empty array until the first entry is appended.
 
-    res.json({
-        success: true
-    });
+    res.json({
+        success: true
+    });
 
 });
 
 app.delete("/api/admin/clients/:id", async (req, res) => {
 
-    const existing = await getTenantFile(req.params.id, "business.json", null);
+    const existing = await getTenantFile(req.params.id, "business.json", null);
 
-    if (!existing) {
-        return res.status(404).json({
-            error: "Client not found."
-        });
-    }
+    if (!existing) {
+        return res.status(404).json({
+            error: "Client not found."
+        });
+    }
 
-    await deleteTenantData(req.params.id);
+    await deleteTenantData(req.params.id);
 
-    res.json({
-        success: true
-    });
+    res.json({
+        success: true
+    });
 
 });
 
@@ -652,35 +652,35 @@ app.delete("/api/admin/clients/:id", async (req, res) => {
 
 app.get("/api/admin/profile", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const business = await getTenantFile(tenantId, "business.json", {
-        businessName: "",
-        industry: "",
-        description: "",
-        website: "",
-        email: "",
-        phone: "",
-        whatsapp: "",
-        address: "",
-        bookingUrl: "",
-        tone: "Professional",
-        openingHours: {}
-    });
+    const business = await getTenantFile(tenantId, "business.json", {
+        businessName: "",
+        industry: "",
+        description: "",
+        website: "",
+        email: "",
+        phone: "",
+        whatsapp: "",
+        address: "",
+        bookingUrl: "",
+        tone: "Professional",
+        openingHours: {}
+    });
 
-    res.json(business);
+    res.json(business);
 
 });
 
 app.post("/api/admin/profile", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    await setTenantFile(tenantId, "business.json", req.body);
+    await setTenantFile(tenantId, "business.json", req.body);
 
-    res.json({
-        success: true
-    });
+    res.json({
+        success: true
+    });
 
 });
 
@@ -690,32 +690,32 @@ app.post("/api/admin/profile", async (req, res) => {
 
 app.get("/api/admin/behaviour", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const behaviour = await getTenantFile(tenantId, "behaviour.json", {
-        personality: "Professional",
-        responseLength: "Short",
-        emojiUsage: false,
-        salesStyle: "Balanced",
-        humor: false,
-        greeting: "",
-        closing: "",
-        customInstructions: ""
-    });
+    const behaviour = await getTenantFile(tenantId, "behaviour.json", {
+        personality: "Professional",
+        responseLength: "Short",
+        emojiUsage: false,
+        salesStyle: "Balanced",
+        humor: false,
+        greeting: "",
+        closing: "",
+        customInstructions: ""
+    });
 
-    res.json(behaviour);
+    res.json(behaviour);
 
 });
 
 app.post("/api/admin/behaviour", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    await setTenantFile(tenantId, "behaviour.json", req.body);
+    await setTenantFile(tenantId, "behaviour.json", req.body);
 
-    res.json({
-        success: true
-    });
+    res.json({
+        success: true
+    });
 
 });
 
@@ -725,23 +725,23 @@ app.post("/api/admin/behaviour", async (req, res) => {
 
 app.get("/api/admin/faq", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const faq = await getTenantFile(tenantId, "faq.json", []);
+    const faq = await getTenantFile(tenantId, "faq.json", []);
 
-    res.json(faq);
+    res.json(faq);
 
 });
 
 app.post("/api/admin/faq", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    await setTenantFile(tenantId, "faq.json", req.body);
+    await setTenantFile(tenantId, "faq.json", req.body);
 
-    res.json({
-        success: true
-    });
+    res.json({
+        success: true
+    });
 
 });
 
@@ -751,21 +751,21 @@ app.post("/api/admin/faq", async (req, res) => {
 
 app.get("/api/admin/services", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const services = await getTenantFile(tenantId, "services.json", []);
+    const services = await getTenantFile(tenantId, "services.json", []);
 
-    res.json(services);
+    res.json(services);
 
 });
 
 app.post("/api/admin/services", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    await setTenantFile(tenantId, "services.json", req.body);
+    await setTenantFile(tenantId, "services.json", req.body);
 
-    res.json({ success: true });
+    res.json({ success: true });
 
 });
 
@@ -775,21 +775,21 @@ app.post("/api/admin/services", async (req, res) => {
 
 app.get("/api/admin/knowledge", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const knowledge = await getTenantFile(tenantId, "knowledge.json", []);
+    const knowledge = await getTenantFile(tenantId, "knowledge.json", []);
 
-    res.json(knowledge);
+    res.json(knowledge);
 
 });
 
 app.post("/api/admin/knowledge", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    await setTenantFile(tenantId, "knowledge.json", req.body);
+    await setTenantFile(tenantId, "knowledge.json", req.body);
 
-    res.json({ success: true });
+    res.json({ success: true });
 
 });
 
@@ -799,25 +799,25 @@ app.post("/api/admin/knowledge", async (req, res) => {
 
 app.get("/api/admin/integrations", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const integrations = await getTenantFile(tenantId, "integrations.json", {
-        enabled: false,
-        provider: "google",
-        calendarId: ""
-    });
+    const integrations = await getTenantFile(tenantId, "integrations.json", {
+        enabled: false,
+        provider: "google",
+        calendarId: ""
+    });
 
-    res.json(integrations);
+    res.json(integrations);
 
 });
 
 app.post("/api/admin/integrations", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    await setTenantFile(tenantId, "integrations.json", req.body);
+    await setTenantFile(tenantId, "integrations.json", req.body);
 
-    res.json({ success: true });
+    res.json({ success: true });
 
 });
 
@@ -827,263 +827,263 @@ app.post("/api/admin/integrations", async (req, res) => {
 
 app.get("/api/admin/import", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    const importDoc = await getTenantFile(tenantId, "import.json", null);
+    const importDoc = await getTenantFile(tenantId, "import.json", null);
 
-    if (!importDoc) {
-        return res.json({ exists: false });
-    }
+    if (!importDoc) {
+        return res.json({ exists: false });
+    }
 
-    res.json({
-        exists: true,
-        ...importDoc
-    });
+    res.json({
+        exists: true,
+        ...importDoc
+    });
 
 });
 
 app.post("/api/admin/import", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    try {
+    try {
 
-        const website = req.body.website;
+        const website = req.body.website;
 
-        if (!website) {
-            return res.status(400).json({
-                error: "Website URL is required."
-            });
-        }
+        if (!website) {
+            return res.status(400).json({
+                error: "Website URL is required."
+            });
+        }
 
-        console.log(`Starting import for ${tenantId}: ${website}`);
+        console.log(`Starting import for ${tenantId}: ${website}`);
 
-        const pages = await crawlWebsite(website);
+        const pages = await crawlWebsite(website);
 
-        const imported = await processWebsiteContent(pages);
+        const imported = await processWebsiteContent(pages);
 
-        // Validate import before touching any client data
+        // Validate import before touching any client data
 
-        if (
-            !imported ||
-            typeof imported !== "object" ||
-            !imported.business ||
-            !Array.isArray(imported.services) ||
-            !Array.isArray(imported.faq) ||
-            !Array.isArray(imported.knowledge)
-        ) {
-            throw new Error("Importer returned invalid data.");
-        }
+        if (
+            !imported ||
+            typeof imported !== "object" ||
+            !imported.business ||
+            !Array.isArray(imported.services) ||
+            !Array.isArray(imported.faq) ||
+            !Array.isArray(imported.knowledge)
+        ) {
+            throw new Error("Importer returned invalid data.");
+        }
 
-        // ---------- BUSINESS ----------
+        // ---------- BUSINESS ----------
 
-        const existingBusiness = await getTenantFile(tenantId, "business.json", {});
+        const existingBusiness = await getTenantFile(tenantId, "business.json", {});
 
-        const mergedBusiness = {
-            ...existingBusiness
-        };
+        const mergedBusiness = {
+            ...existingBusiness
+        };
 
-        for (const [key, value] of Object.entries(imported.business)) {
+        for (const [key, value] of Object.entries(imported.business)) {
 
-            if (
-                value &&
-                String(value).trim() !== ""
-            ) {
-                mergedBusiness[key] = value;
-            }
+            if (
+                value &&
+                String(value).trim() !== ""
+            ) {
+                mergedBusiness[key] = value;
+            }
 
-        }
+        }
 
-        await setTenantFile(tenantId, "business.json", mergedBusiness);
+        await setTenantFile(tenantId, "business.json", mergedBusiness);
 
-        // ---------- SERVICES ----------
+        // ---------- SERVICES ----------
 
-        const existingServices = await getTenantFile(tenantId, "services.json", []);
+        const existingServices = await getTenantFile(tenantId, "services.json", []);
 
-        const serviceMap = new Map();
+        const serviceMap = new Map();
 
-        for (const service of existingServices) {
+        for (const service of existingServices) {
 
-            if (!service?.name) continue;
+            if (!service?.name) continue;
 
-            serviceMap.set(
-                service.name.trim().toLowerCase(),
-                { ...service }
-            );
+            serviceMap.set(
+                service.name.trim().toLowerCase(),
+                { ...service }
+            );
 
-        }
+        }
 
-        for (const service of imported.services) {
+        for (const service of imported.services) {
 
-            if (!service?.name) continue;
+            if (!service?.name) continue;
 
-            const key = service.name.trim().toLowerCase();
+            const key = service.name.trim().toLowerCase();
 
-            const existing = serviceMap.get(key) || {};
+            const existing = serviceMap.get(key) || {};
 
-            serviceMap.set(key, {
+            serviceMap.set(key, {
 
-                ...existing,
+                ...existing,
 
-                name: service.name || existing.name,
+                name: service.name || existing.name,
 
-                description:
-                    service.description?.trim()
-                        ? service.description
-                        : existing.description,
+                description:
+                    service.description?.trim()
+                        ? service.description
+                        : existing.description,
 
-                price:
-                    service.price?.toString().trim()
-                        ? service.price
-                        : existing.price,
+                price:
+                    service.price?.toString().trim()
+                        ? service.price
+                        : existing.price,
 
-                monthly:
-                    service.monthly?.toString().trim()
-                        ? service.monthly
-                        : existing.monthly
+                monthly:
+                    service.monthly?.toString().trim()
+                        ? service.monthly
+                        : existing.monthly
 
-            });
+            });
 
-        }
+        }
 
-        const mergedServices = [...serviceMap.values()];
+        const mergedServices = [...serviceMap.values()];
 
-        await setTenantFile(tenantId, "services.json", mergedServices);
+        await setTenantFile(tenantId, "services.json", mergedServices);
 
-        // ---------- FAQ ----------
+        // ---------- FAQ ----------
 
-        const existingFaq = await getTenantFile(tenantId, "faq.json", []);
+        const existingFaq = await getTenantFile(tenantId, "faq.json", []);
 
-        const faqMap = new Map();
+        const faqMap = new Map();
 
-        for (const item of existingFaq) {
+        for (const item of existingFaq) {
 
-            if (!item?.question) continue;
+            if (!item?.question) continue;
 
-            faqMap.set(
-                item.question.trim().toLowerCase(),
-                { ...item }
-            );
+            faqMap.set(
+                item.question.trim().toLowerCase(),
+                { ...item }
+            );
 
-        }
+        }
 
-        for (const item of imported.faq) {
+        for (const item of imported.faq) {
 
-            if (!item?.question) continue;
+            if (!item?.question) continue;
 
-            const key = item.question.trim().toLowerCase();
+            const key = item.question.trim().toLowerCase();
 
-            const existing = faqMap.get(key) || {};
+            const existing = faqMap.get(key) || {};
 
-            faqMap.set(key, {
+            faqMap.set(key, {
 
-                ...existing,
+                ...existing,
 
-                question:
-                    item.question || existing.question,
+                question:
+                    item.question || existing.question,
 
-                answer:
-                    item.answer?.trim()
-                        ? item.answer
-                        : existing.answer
+                answer:
+                    item.answer?.trim()
+                        ? item.answer
+                        : existing.answer
 
-            });
+            });
 
-        }
+        }
 
-        const mergedFaq = [...faqMap.values()];
+        const mergedFaq = [...faqMap.values()];
 
-        await setTenantFile(tenantId, "faq.json", mergedFaq);
+        await setTenantFile(tenantId, "faq.json", mergedFaq);
 
-        // ---------- KNOWLEDGE ----------
+        // ---------- KNOWLEDGE ----------
 
-        const existingKnowledge = await getTenantFile(tenantId, "knowledge.json", []);
+        const existingKnowledge = await getTenantFile(tenantId, "knowledge.json", []);
 
-        const knowledgeMap = new Map();
+        const knowledgeMap = new Map();
 
-        for (const article of existingKnowledge) {
+        for (const article of existingKnowledge) {
 
-            if (!article?.title) continue;
+            if (!article?.title) continue;
 
-            knowledgeMap.set(
-                article.title.trim().toLowerCase(),
-                { ...article }
-            );
+            knowledgeMap.set(
+                article.title.trim().toLowerCase(),
+                { ...article }
+            );
 
-        }
+        }
 
-        for (const article of imported.knowledge) {
+        for (const article of imported.knowledge) {
 
-            if (!article?.title) continue;
+            if (!article?.title) continue;
 
-            if (typeof article.content !== "string") {
-                article.content = JSON.stringify(article.content ?? "");
-            }
+            if (typeof article.content !== "string") {
+                article.content = JSON.stringify(article.content ?? "");
+            }
 
-            if (typeof article.source !== "string") {
-                article.source = "";
-            }
+            if (typeof article.source !== "string") {
+                article.source = "";
+            }
 
-            const key = article.title.trim().toLowerCase();
+            const key = article.title.trim().toLowerCase();
 
-            const existing = knowledgeMap.get(key) || {};
+            const existing = knowledgeMap.get(key) || {};
 
-            knowledgeMap.set(key, {
+            knowledgeMap.set(key, {
 
-                ...existing,
+                ...existing,
 
-                title:
-                    article.title || existing.title,
+                title:
+                    article.title || existing.title,
 
-                content:
-                    typeof article.content === "string" &&
-                    article.content.trim()
-                        ? article.content
-                        : existing.content,
+                content:
+                    typeof article.content === "string" &&
+                    article.content.trim()
+                        ? article.content
+                        : existing.content,
 
-                source:
-                    typeof article.source === "string" &&
-                    article.source.trim()
-                        ? article.source
-                        : existing.source
+                source:
+                    typeof article.source === "string" &&
+                    article.source.trim()
+                        ? article.source
+                        : existing.source
 
-            });
+            });
 
-        }
+        }
 
-        const mergedKnowledge = [...knowledgeMap.values()];
+        const mergedKnowledge = [...knowledgeMap.values()];
 
-        await setTenantFile(tenantId, "knowledge.json", mergedKnowledge);
+        await setTenantFile(tenantId, "knowledge.json", mergedKnowledge);
 
-        await setTenantFile(tenantId, "import.json", {
-            website,
-            status: "Imported",
-            createdAt: new Date().toISOString()
-        });
+        await setTenantFile(tenantId, "import.json", {
+            website,
+            status: "Imported",
+            createdAt: new Date().toISOString()
+        });
 
-        res.json({
-            success: true
-        });
+        res.json({
+            success: true
+        });
 
-    } catch (err) {
+    } catch (err) {
 
-        console.error(err);
+        console.error(err);
 
-        res.status(500).json({
-            error: "Website import failed."
-        });
+        res.status(500).json({
+            error: "Website import failed."
+        });
 
-    }
+    }
 
 });
 
 app.delete("/api/admin/import", async (req, res) => {
 
-    const tenantId = req.headers["x-tenant-id"] || "default";
+    const tenantId = req.headers["x-tenant-id"] || "default";
 
-    await deleteTenantFile(tenantId, "import.json");
+    await deleteTenantFile(tenantId, "import.json");
 
-    res.json({ success: true });
+    res.json({ success: true });
 
 });
 
@@ -1092,35 +1092,35 @@ app.delete("/api/admin/import", async (req, res) => {
 // ====================================
 
 app.get("/api/admin/calendar/connect", (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || req.query.tenant || "default";
-    const url = getAuthUrl(tenantId);
-    res.json({ url });
+    const tenantId = req.headers["x-tenant-id"] || req.query.tenant || "default";
+    const url = getAuthUrl(tenantId);
+    res.json({ url });
 });
 
 app.get("/api/admin/calendar/oauth/callback", async (req, res) => {
-    const { code, state } = req.query;
-    const tenantId = state || "default";
+    const { code, state } = req.query;
+    const tenantId = state || "default";
 
-    try {
-        await handleOAuthCallback(code, tenantId);
-        res.send(`
-            <html>
-                <body style="font-family:Arial;padding:40px;">
-                    <h2>Google Calendar Connected</h2>
-                    <p>You can close this window and return to your dashboard.</p>
-                </body>
-            </html>
-        `);
-    } catch (err) {
-        console.error("Google Calendar OAuth error:", err);
-        res.status(500).send("Failed to connect Google Calendar: " + err.message);
-    }
+    try {
+        await handleOAuthCallback(code, tenantId);
+        res.send(`
+            <html>
+                <body style="font-family:Arial;padding:40px;">
+                    <h2>Google Calendar Connected</h2>
+                    <p>You can close this window and return to your dashboard.</p>
+                </body>
+            </html>
+        `);
+    } catch (err) {
+        console.error("Google Calendar OAuth error:", err);
+        res.status(500).send("Failed to connect Google Calendar: " + err.message);
+    }
 });
 
 app.get("/api/admin/calendar/list", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const connected = await isCalendarConnected(tenantId);
-    res.json({ connected });
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const connected = await isCalendarConnected(tenantId);
+    res.json({ connected });
 });
 
 // ====================================
@@ -1128,371 +1128,404 @@ app.get("/api/admin/calendar/list", async (req, res) => {
 // ====================================
 
 app.get('/api/clients', async (req, res) => {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
+    const tenantId = req.headers['x-tenant-id'] || 'default';
 
-    let sessionVault = await getTenantFile(tenantId, "vault.json", null);
+    let sessionVault = await getTenantFile(tenantId, "vault.json", null);
 
-    if (!sessionVault) {
-        sessionVault = INITIAL_VAULT;
-        await setTenantFile(tenantId, "vault.json", sessionVault);
-    }
+    if (!sessionVault) {
+        sessionVault = INITIAL_VAULT;
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+    }
 
-    res.json(
-        Object.values(sessionVault).map(c => ({
-            id: c.id,
-            name: c.name,
-            label: c.label,
-            price: c.price,
-            status: c.status,
-            analysis: c.analysis
-        }))
-    );
+    res.json(
+        Object.values(sessionVault).map(c => ({
+            id: c.id,
+            name: c.name,
+            label: c.label,
+            price: c.price,
+            status: c.status,
+            analysis: c.analysis
+        }))
+    );
 });
 
 app.post('/api/webhook/whatsapp', async (req, res) => {
-    console.log(`📥 [TELEMETRY NODE]: Incoming packet: ${JSON.stringify(req.body)}`);
-    res.sendStatus(200);
+    console.log(`📥 [TELEMETRY NODE]: Incoming packet: ${JSON.stringify(req.body)}`);
+    res.sendStatus(200);
 });
 
 app.post('/api/webhook', async (req, res) => {
-    console.log(`🌐 [CRM WEBHOOK]: Incoming payload from CRM: ${JSON.stringify(req.body)}`);
-    res.status(200).json({ status: "success", message: "Payload received by The Chain" });
+    console.log(`🌐 [CRM WEBHOOK]: Incoming payload from CRM: ${JSON.stringify(req.body)}`);
+    res.status(200).json({ status: "success", message: "Payload received by The Chain" });
 });
 
 app.post('/api/override', async (req, res) => {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
-    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
-    const { sessionId, mode } = req.body;
-    if (sessionVault[sessionId]) {
-        sessionVault[sessionId].status = mode === 'HUMAN' ? 'Manual Override' : 'Active';
-        await setTenantFile(tenantId, "vault.json", sessionVault);
-        res.json({ success: true, status: sessionVault[sessionId].status });
-    } else {
-        res.status(400).json({ error: "Session missing." });
-    }
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const { sessionId, mode } = req.body;
+    if (sessionVault[sessionId]) {
+        sessionVault[sessionId].status = mode === 'HUMAN' ? 'Manual Override' : 'Active';
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+        res.json({ success: true, status: sessionVault[sessionId].status });
+    } else {
+        res.status(400).json({ error: "Session missing." });
+    }
 });
 
 // Books an EXACT date/time (never a guess) — creates the calendar event and
 // saves the booking record. Used by both the website confirm endpoint and
 // the WhatsApp text-based slot picker below.
 async function finalizeBooking(tenantId, session, date, time) {
-    const startTime = new Date(`${date}T${time}:00`).toISOString();
-    const endTime = new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString();
+    const startTime = new Date(`${date}T${time}:00`).toISOString();
+    const endTime = new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString();
 
-    let calendarEventCreated = false;
+    let calendarEventCreated = false;
 
-    try {
-        const calendarResult = await createCalendarEvent(tenantId, {
-            summary: `${session.lead?.service || "Appointment"} - ${session.lead?.fullName || "Customer"}`,
-            description: `Phone: ${session.lead?.phone || ""}\nEmail: ${session.lead?.email || ""}\nBooked via Val (${session.channel})`,
-            startTime,
-            endTime
-        });
-        calendarEventCreated = !!(calendarResult && !calendarResult.skipped && calendarResult.id);
-    } catch (err) {
-        console.error("Failed to create calendar event:", err);
+    try {
+        const calendarResult = await createCalendarEvent(tenantId, {
+            summary: `${session.lead?.service || "Appointment"} - ${session.lead?.fullName || "Customer"}`,
+            description: `Phone: ${session.lead?.phone || ""}\nEmail: ${session.lead?.email || ""}\nBooked via Val (${session.channel})`,
+            startTime,
+            endTime
+        });
+        calendarEventCreated = !!(calendarResult && !calendarResult.skipped && calendarResult.id);
+    } catch (err) {
+        console.error("Failed to create calendar event:", err);
+    }
+
+    const bookingRecord = {
+        timestamp: new Date().toISOString(),
+        service: session.lead?.service,
+        date,
+        time,
+        fullName: session.lead?.fullName,
+        phone: session.lead?.phone,
+        email: session.lead?.email,
+        channel: session.channel,
+        calendarEventCreated
+    };
+
+await appendTenantLog(tenantId, "bookings.json", bookingRecord);
+
+    // Send styled HTML confirmation email
+    if (session.lead?.email) {
+        try {
+            await emailTransporter.sendMail({
+                from: `"Val from The Chain" <${process.env.SMTP_USER}>`,
+                to: session.lead.email,
+                subject: `Booking Confirmed: ${session.lead.service || "Appointment"}`,
+                html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 25px; border: 1px solid #eaeaea; border-radius: 10px; background: #ffffff;">
+                        <h2 style="color: #111; text-align: center; margin-bottom: 20px;">Appointment Confirmed!</h2>
+                        <p style="font-size: 16px; color: #333;">Hi <strong>${session.lead.fullName || "there"}</strong>,</p>
+                        <p style="font-size: 15px; color: #555; line-height: 1.5;">Your appointment for <strong>${session.lead.service || "Consultation"}</strong> has been locked into our calendar.</p>
+                        
+                        <table style="width: 100%; background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border-collapse: collapse;">
+                            <tr>
+                                <td style="padding: 8px 0; font-size: 14px; color: #666;"><strong>Date:</strong></td>
+                                <td style="padding: 8px 0; font-size: 14px; color: #111; text-align: right;">${date}</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 8px 0; font-size: 14px; color: #666;"><strong>Time:</strong></td>
+                                <td style="padding: 8px 0; font-size: 14px; color: #111; text-align: right;">${time}</td>
+                            </tr>
+                        </table>
+                        
+                        <p style="font-size: 13px; color: #777; text-align: center; margin-top: 25px;">If you need to make changes or reschedule, reply directly to this email or contact us on WhatsApp.</p>
+                    </div>
+                `
+            });
+        } catch (mailErr) {
+            console.error("Failed to send booking confirmation email:", mailErr);
+        }
     }
-
-    const bookingRecord = {
-        timestamp: new Date().toISOString(),
-        service: session.lead?.service,
-        date,
-        time,
-        fullName: session.lead?.fullName,
-        phone: session.lead?.phone,
-        email: session.lead?.email,
-        channel: session.channel,
-        calendarEventCreated
-    };
-
-    await appendTenantLog(tenantId, "bookings.json", bookingRecord);
 
     return bookingRecord;
 }
 
 // Finds the next day (up to 7 days out) with at least one real open slot.
 async function findNextAvailableDate(tenantId, daysToCheck = 7) {
-    for (let i = 1; i <= daysToCheck; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() + i);
-        const dateStr = d.toISOString().split("T")[0];
-        const slots = await getAvailableSlots(tenantId, dateStr);
-        if (slots.length > 0) return { date: dateStr, slots };
-    }
-    return null;
+    for (let i = 1; i <= daysToCheck; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        const dateStr = d.toISOString().split("T")[0];
+        const slots = await getAvailableSlots(tenantId, dateStr);
+        if (slots.length > 0) return { date: dateStr, slots };
+    }
+    return null;
 }
 
 // Matches a customer's free-text reply (e.g. "2", "10:00", "the 10am one")
 // against the exact slots we offered them.
 function matchSlotFromMessage(text, slots) {
-    const trimmed = text.trim();
-    const numMatch = trimmed.match(/^(\d+)/);
-    if (numMatch) {
-        const idx = parseInt(numMatch[1], 10) - 1;
-        if (slots[idx]) return slots[idx];
-    }
-    return slots.find((s) => trimmed.includes(s)) || null;
+    const trimmed = text.trim();
+    const numMatch = trimmed.match(/^(\d+)/);
+    if (numMatch) {
+        const idx = parseInt(numMatch[1], 10) - 1;
+        if (slots[idx]) return slots[idx];
+    }
+    return slots.find((s) => trimmed.includes(s)) || null;
 }
 
 // Reusable core engine function used by both website chat and WhatsApp
 const processValMessage = async (tenantId, sessionId, messageText, channel = "website") => {
 
-    let sessionVault = await getTenantFile(tenantId, "vault.json", null);
-    if (!sessionVault) sessionVault = INITIAL_VAULT;
+    let sessionVault = await getTenantFile(tenantId, "vault.json", null);
+    if (!sessionVault) sessionVault = INITIAL_VAULT;
 
-    const lowerMessage = messageText.toLowerCase();
+    const lowerMessage = messageText.toLowerCase();
 
-    // Automatically create a visitor session if it doesn't exist
-    if (!sessionVault[sessionId]) {
-        sessionVault[sessionId] = {
-            id: sessionId,
-            name: "Visitor",
-            label: "Chat",
-            channel: channel,
-            startedAt: new Date().toISOString(),
-            price: 0,
-            status: "Active",
-            lead: {
-                fullName: "",
-                phone: "",
-                email: "",
-                service: "",
-                preferredDate: "",
-                preferredTime: ""
-            },
-            conversationState: "DISCUSSION",
-            history: [],
-            analysis: {
-                buyerProfile: "Unknown",
-                objectionType: "Unknown",
-                concessionStep: "None"
-            }
-        };
-    }
+    // Automatically create a visitor session if it doesn't exist
+    if (!sessionVault[sessionId]) {
+        sessionVault[sessionId] = {
+            id: sessionId,
+            name: "Visitor",
+            label: "Chat",
+            channel: channel,
+            startedAt: new Date().toISOString(),
+            price: 0,
+            status: "Active",
+            lead: {
+                fullName: "",
+                phone: "",
+                email: "",
+                service: "",
+                preferredDate: "",
+                preferredTime: ""
+            },
+            conversationState: "DISCUSSION",
+            history: [],
+            analysis: {
+                buyerProfile: "Unknown",
+                objectionType: "Unknown",
+                concessionStep: "None"
+            }
+        };
+    }
 
-    const session = sessionVault[sessionId];
-    session.channel = channel;
-    session.lastUpdated = new Date().toISOString();
+    const session = sessionVault[sessionId];
+    session.channel = channel;
+    session.lastUpdated = new Date().toISOString();
 
-    // Records the user's message + Val's reply into history, then returns the reply.
-    const recordAndReturn = async (replyText) => {
-        session.history.push({ role: "user", content: messageText });
-        session.history.push({ role: "assistant", content: replyText });
-        await setTenantFile(tenantId, "vault.json", sessionVault);
-        return replyText;
-    };
+    // Records the user's message + Val's reply into history, then returns the reply.
+    const recordAndReturn = async (replyText) => {
+        session.history.push({ role: "user", content: messageText });
+        session.history.push({ role: "assistant", content: replyText });
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+        return replyText;
+    };
 
-    // ====================================
-    // HUMAN HANDOFF
-    // ====================================
-    const HUMAN_REQUEST_PATTERNS = [
-        "real person", "human", "representative", "someone", "owner", 
-        "call me", "talk to a person", "talk to someone", "speak to someone", 
-        "speak to a person", "speak to a human", "agent"
-    ];
+    // ====================================
+    // HUMAN HANDOFF
+    // ====================================
+    const HUMAN_REQUEST_PATTERNS = [
+        "real person", "human", "representative", "someone", "owner", 
+        "call me", "talk to a person", "talk to someone", "speak to someone", 
+        "speak to a person", "speak to a human", "agent"
+    ];
 
-    const wantsHuman = HUMAN_REQUEST_PATTERNS.some(pattern => lowerMessage.includes(pattern));
+    const wantsHuman = HUMAN_REQUEST_PATTERNS.some(pattern => lowerMessage.includes(pattern));
 
-    if (wantsHuman) {
-        session.status = "Waiting For Human";
-        session.intent = "human_handoff";
+    if (wantsHuman) {
+        session.status = "Waiting For Human";
+        session.intent = "human_handoff";
 
-        if (!session.lead) {
-            session.lead = { fullName: "", phone: "", email: "", service: "", preferredDate: "", preferredTime: "" };
-        }
+        if (!session.lead) {
+            session.lead = { fullName: "", phone: "", email: "", service: "", preferredDate: "", preferredTime: "" };
+        }
 
-        if (!session.lead.fullName) {
-            return await recordAndReturn("Absolutely. I'll arrange for a member of our team to contact you. First, may I have your full name?");
-        }
+        if (!session.lead.fullName) {
+            return await recordAndReturn("Absolutely. I'll arrange for a member of our team to contact you. First, may I have your full name?");
+        }
 
-        if (!session.lead.phone) {
-            return await recordAndReturn("Thank you. What's the best phone number or WhatsApp number to reach you?");
-        }
+        if (!session.lead.phone) {
+            return await recordAndReturn("Thank you. What's the best phone number or WhatsApp number to reach you?");
+        }
 
-        return await recordAndReturn("Perfect. I'll notify our team immediately and someone will contact you on WhatsApp as soon as possible.");
-    }
+        return await recordAndReturn("Perfect. I'll notify our team immediately and someone will contact you on WhatsApp as soon as possible.");
+    }
 
-    // If a human has taken over this conversation, Val stays silent.
-    if (session.status === "Manual Override") {
-        return null;
-    }
+    // If a human has taken over this conversation, Val stays silent.
+    if (session.status === "Manual Override") {
+        return null;
+    }
 
-    // ====================================
-    // CONVERSATION STATE LOCK FIX
-    // ====================================
+    // ====================================
+    // CONVERSATION STATE LOCK FIX
+    // ====================================
 if (session.conversationState === "BOOKING" || lowerMessage.includes("book")) {
-        session.conversationState = "BOOKING";
-    } else if (
-        lowerMessage.includes("price") ||
-        lowerMessage.includes("cost") ||
-        lowerMessage.includes("how much")
-    ) {
-        session.conversationState = "PRICING";
-    } else {
-        session.conversationState = "DISCUSSION";
-    }
+        session.conversationState = "BOOKING";
+    } else if (
+        lowerMessage.includes("price") ||
+        lowerMessage.includes("cost") ||
+        lowerMessage.includes("how much")
+    ) {
+        session.conversationState = "PRICING";
+    } else {
+        session.conversationState = "DISCUSSION";
+    }
 
-    if (!session.lead) {
-        session.lead = { fullName: "", phone: "", email: "", service: "", preferredDate: "", preferredTime: "" };
-    }
+    if (!session.lead) {
+        session.lead = { fullName: "", phone: "", email: "", service: "", preferredDate: "", preferredTime: "" };
+    }
 
-    const emailMatch = messageText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-    if (emailMatch) session.lead.email = emailMatch[0];
+    const emailMatch = messageText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    if (emailMatch) session.lead.email = emailMatch[0];
 
-    const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
-    if (phoneMatch) session.lead.phone = phoneMatch[0];
+    const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
+    if (phoneMatch) session.lead.phone = phoneMatch[0];
 
-    const nameMatch = messageText.match(/(?:my name is|i am|i'm|it's|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
-    
-    // ====================================
-    // NAME EXTRACTION FIX
-    // ====================================
-    if (nameMatch) {
-        session.lead.fullName = nameMatch[1];
-        session.name = nameMatch[1];
-    } else if (
-        session.conversationState === "BOOKING" &&
-        !session.lead.fullName &&
-        messageText.trim().split(/\s+/).length > 0 &&
-        messageText.trim().split(/\s+/).length <= 4 && // Limit word count so it doesn't absorb full sentences
-        !messageText.includes("@") &&
-        !messageText.includes("+") &&
-        !lowerMessage.includes("book") // Prevent the trigger phrase from becoming the name
-    ) {
-        session.lead.fullName = messageText.trim();
-        session.name = messageText.trim();
-    }
+    const nameMatch = messageText.match(/(?:my name is|i am|i'm|it's|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
+    
+    // ====================================
+    // NAME EXTRACTION FIX
+    // ====================================
+    if (nameMatch) {
+        session.lead.fullName = nameMatch[1];
+        session.name = nameMatch[1];
+    } else if (
+        session.conversationState === "BOOKING" &&
+        !session.lead.fullName &&
+        messageText.trim().split(/\s+/).length > 0 &&
+        messageText.trim().split(/\s+/).length <= 4 && // Limit word count so it doesn't absorb full sentences
+        !messageText.includes("@") &&
+        !messageText.includes("+") &&
+        !lowerMessage.includes("book") // Prevent the trigger phrase from becoming the name
+    ) {
+        session.lead.fullName = messageText.trim();
+        session.name = messageText.trim();
+    }
 
-    const availableServices = await getTenantFile(tenantId, "services.json", []);
-    for (const service of availableServices) {
-        const serviceName = service.name.toLowerCase();
-        if (lowerMessage.includes(serviceName)) {
-            session.lead.service = service.name;
-            break;
-        }
-    }
+    const availableServices = await getTenantFile(tenantId, "services.json", []);
+    for (const service of availableServices) {
+        const serviceName = service.name.toLowerCase();
+        if (lowerMessage.includes(serviceName)) {
+            session.lead.service = service.name;
+            break;
+        }
+    }
 
 
-    // ====================================
-    // CONTINUE HUMAN HANDOFF
-    // ====================================
-    if (session.intent === "human_handoff" && !session.handoffNotified) {
-        if (!session.lead.fullName) {
-            return await recordAndReturn("May I have your full name?");
-        }
-        if (!session.lead.phone) {
-            return await recordAndReturn("Thank you. What's the best WhatsApp or phone number to reach you?");
-        }
+    // ====================================
+    // CONTINUE HUMAN HANDOFF
+    // ====================================
+    if (session.intent === "human_handoff" && !session.handoffNotified) {
+        if (!session.lead.fullName) {
+            return await recordAndReturn("May I have your full name?");
+        }
+        if (!session.lead.phone) {
+            return await recordAndReturn("Thank you. What's the best WhatsApp or phone number to reach you?");
+        }
 
-        sendAlert(
-            tenantId,
-            `🚨 HUMAN REQUEST\n\nName: ${session.lead.fullName}\n\nPhone: ${session.lead.phone}\n\nChannel: ${channel}\n\nSession: ${session.id}`
-        );
+        sendAlert(
+            tenantId,
+            `🚨 HUMAN REQUEST\n\nName: ${session.lead.fullName}\n\nPhone: ${session.lead.phone}\n\nChannel: ${channel}\n\nSession: ${session.id}`
+        );
 
-        session.handoffNotified = true;
-        session.status = "Waiting For Human";
-        session.pendingReply = "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
-        await setTenantFile(tenantId, "vault.json", sessionVault);
-    }
+        session.handoffNotified = true;
+        session.status = "Waiting For Human";
+        session.pendingReply = "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+    }
 
-    if (session.status === "Manual Override") {
-        return null;
-    }
+    if (session.status === "Manual Override") {
+        return null;
+    }
 
-    if (session.history.length === 0 || session.history[0].role !== "system") {
-        session.history = [{
-            role: "system",
-            content: await buildSystemPrompt(tenantId, messageText)
-        }];
-    } else {
-        session.history[0].content = await buildSystemPrompt(tenantId, messageText);
-    }
-    session.history.push({ role: 'user', content: messageText });
+    if (session.history.length === 0 || session.history[0].role !== "system") {
+        session.history = [{
+            role: "system",
+            content: await buildSystemPrompt(tenantId, messageText)
+        }];
+    } else {
+        session.history[0].content = await buildSystemPrompt(tenantId, messageText);
+    }
+    session.history.push({ role: 'user', content: messageText });
 
-    try {
-        session.nextQuestion = null;
+    try {
+        session.nextQuestion = null;
 
 if (session.conversationState === "BOOKING") {
-            if (!session.lead.fullName) {
-                const askName = "Great! Before we book your appointment, may I have your full name?";
-                session.history.push({ role: "assistant", content: askName });
-                await setTenantFile(tenantId, "vault.json", sessionVault);
-                return askName;
-            }
-            if (!session.lead.phone) {
-                const askPhone = "Thank you. What's the best phone number or WhatsApp number to reach you?";
-                session.history.push({ role: "assistant", content: askPhone });
-                await setTenantFile(tenantId, "vault.json", sessionVault);
-                return askPhone;
-            }
-            if (!session.lead.email) {
-                const askEmail = "Perfect. Lastly, what's your email address for the booking confirmation?";
-                session.history.push({ role: "assistant", content: askEmail });
-                await setTenantFile(tenantId, "vault.json", sessionVault);
-                return askEmail;
-            }
+            if (!session.lead.fullName) {
+                const askName = "Great! Before we book your appointment, may I have your full name?";
+                session.history.push({ role: "assistant", content: askName });
+                await setTenantFile(tenantId, "vault.json", sessionVault);
+                return askName;
+            }
+            if (!session.lead.phone) {
+                const askPhone = "Thank you. What's the best phone number or WhatsApp number to reach you?";
+                session.history.push({ role: "assistant", content: askPhone });
+                await setTenantFile(tenantId, "vault.json", sessionVault);
+                return askPhone;
+            }
+            if (!session.lead.email) {
+                const askEmail = "Perfect. Lastly, what's your email address for the booking confirmation?";
+                session.history.push({ role: "assistant", content: askEmail });
+                await setTenantFile(tenantId, "vault.json", sessionVault);
+                return askEmail;
+            }
 
-            if (!session.lead.saved) {
-                session.lead.saved = true;
-                await appendTenantLog(tenantId, "leads.json", {
-                    timestamp: new Date().toISOString(),
-                    ...session.lead,
-                    sessionId: session.id
-                });
-            }
+            if (!session.lead.saved) {
+                session.lead.saved = true;
+                await appendTenantLog(tenantId, "leads.json", {
+                    timestamp: new Date().toISOString(),
+                    ...session.lead,
+                    sessionId: session.id
+                });
+            }
 
-            const bookingLink = `${process.env.PUBLIC_APP_URL || "https://ainegotiator-8rik.onrender.com"}/book/${tenantId}/${session.id}`;
-            const linkMessage = `Perfect, I have everything I need. Please pick a time that works for you here: ${bookingLink}`;
+            const bookingLink = `${process.env.PUBLIC_APP_URL || "https://ainegotiator-8rik.onrender.com"}/book/${tenantId}/${session.id}`;
+            const linkMessage = `Perfect, I have everything I need. Please pick a time that works for you here: ${bookingLink}`;
 
-            session.history.push({ role: "assistant", content: linkMessage });
-            await setTenantFile(tenantId, "vault.json", sessionVault);
-            return linkMessage;
-        }
+            session.history.push({ role: "assistant", content: linkMessage });
+            await setTenantFile(tenantId, "vault.json", sessionVault);
+            return linkMessage;
+        }
 
-        const response = await groq.chat.completions.create({
-            model: "llama-3.1-8b-instant",
-            messages: session.history,
-            temperature: 0.5
-        });
+        const response = await groq.chat.completions.create({
+            model: "llama-3.1-8b-instant",
+            messages: session.history,
+            temperature: 0.5
+        });
 
-        let fullReply = response.choices[0].message.content;
-        const metaMatch = fullReply.match(/\[\[\s*PROFILE:\s*(.*?)\s*\|\s*OBJECTION:\s*(.*?)\s*\|\s*CONCESSION:\s*(.*?)\s*\]\]/);
-        if (metaMatch) {
-            session.analysis = { buyerProfile: metaMatch[1], objectionType: metaMatch[2], concessionStep: metaMatch[3] };
-        }
+        let fullReply = response.choices[0].message.content;
+        const metaMatch = fullReply.match(/\[\[\s*PROFILE:\s*(.*?)\s*\|\s*OBJECTION:\s*(.*?)\s*\|\s*CONCESSION:\s*(.*?)\s*\]\]/);
+        if (metaMatch) {
+            session.analysis = { buyerProfile: metaMatch[1], objectionType: metaMatch[2], concessionStep: metaMatch[3] };
+        }
 
-        let cleanReply = fullReply
-            .replace(/\[\[.*?\]\]/g, "")
-            .replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]|\[SEND_CALENDAR_LINK\]/g, "")
-            .trim();
+        let cleanReply = fullReply
+            .replace(/\[\[.*?\]\]/g, "")
+            .replace(/\[DEAL_AGREED\]|\[BOOKING_CONFIRMED\]|\[SEND_CALENDAR_LINK\]/g, "")
+            .trim();
 
-        if (session.pendingReply) {
-            cleanReply = session.pendingReply;
-            session.pendingReply = null;
-        }
+        if (session.pendingReply) {
+            cleanReply = session.pendingReply;
+            session.pendingReply = null;
+        }
 
-        const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
-        if (sentences && sentences.length > 3) cleanReply = sentences.slice(0, 3).join(" ").trim();
+        const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
+        if (sentences && sentences.length > 3) cleanReply = sentences.slice(0, 3).join(" ").trim();
 
-        session.history.push({ role: "assistant", content: cleanReply });
-        session.history = [session.history[0], ...session.history.slice(-6)];
+        session.history.push({ role: "assistant", content: cleanReply });
+        session.history = [session.history[0], ...session.history.slice(-6)];
 
-        await logAudit(tenantId, sessionId, messageText, fullReply, session.analysis);
-        await setTenantFile(tenantId, "vault.json", sessionVault);
+        await logAudit(tenantId, sessionId, messageText, fullReply, session.analysis);
+        await setTenantFile(tenantId, "vault.json", sessionVault);
 
-        return cleanReply;
-    } catch (error) {
-        sendAlert(tenantId, `CRITICAL FAILURE: ${error.message}`);
-        return "I'm recalibrating...";
-    }
+        return cleanReply;
+    } catch (error) {
+        sendAlert(tenantId, `CRITICAL FAILURE: ${error.message}`);
+        return "I'm recalibrating...";
+    }
 };
 
 // Website Endpoint uses the shared core function
 app.post('/api/chat', async (req, res) => {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
-    const { sessionId, message } = req.body;
-    const responseText = await processValMessage(tenantId, sessionId, message, "website");
-    res.json({ response: responseText || "" });
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    const { sessionId, message } = req.body;
+    const responseText = await processValMessage(tenantId, sessionId, message, "website");
+    res.json({ response: responseText || "" });
 });
 
 // ====================================
@@ -1500,144 +1533,144 @@ app.post('/api/chat', async (req, res) => {
 // ====================================
 
 app.get('/api/calendar/slots/:tenantId', async (req, res) => {
-    const { tenantId } = req.params;
-    const { date } = req.query;
+    const { tenantId } = req.params;
+    const { date } = req.query;
 
-    try {
-        // Pass the tenantId so it fetches from the connected Google Calendar for that business
-        const availableSlots = await getAvailableSlots(tenantId, date);
-        res.json(availableSlots);
-    } catch (error) {
-        console.error("Error fetching live slots for tenant " + tenantId, error);
-        // Fallback standard business hours if calendar lookup hits an auth snag
-        res.json(["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"]); 
-    }
+    try {
+        // Pass the tenantId so it fetches from the connected Google Calendar for that business
+        const availableSlots = await getAvailableSlots(tenantId, date);
+        res.json(availableSlots);
+    } catch (error) {
+        console.error("Error fetching live slots for tenant " + tenantId, error);
+        // Fallback standard business hours if calendar lookup hits an auth snag
+        res.json(["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"]); 
+    }
 });
 
 app.get('/book/:tenantId/:sessionId', async (req, res) => {
-    const { tenantId, sessionId } = req.params;
-    
-    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
-    const session = sessionVault[sessionId];
-    
-    if (!session || !session.lead) {
-        return res.status(404).send("Booking session expired or not found.");
-    }
+    const { tenantId, sessionId } = req.params;
+    
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[sessionId];
+    
+    if (!session || !session.lead) {
+        return res.status(404).send("Booking session expired or not found.");
+    }
 
-    const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Select a Time</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <style>
-            body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; background: #f9f9f9; }
-            .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-            h2 { margin-top: 0; font-size: 20px; }
-            label { font-weight: bold; display: block; margin: 15px 0 5px; font-size: 14px; }
-            input, select { width: 100%; padding: 12px; margin-bottom: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-            button { background: #000; color: #fff; padding: 15px; width: 100%; border: none; font-size: 16px; border-radius: 5px; font-weight: bold; cursor: pointer; }
-            button:disabled { background: #ccc; cursor: not-allowed; }
-        </style>
-    </head>
-    <body>
-        <div class="card">
-            <h2>📅 Book: ${session.lead.service}</h2>
-            <p style="color: #555; font-size: 14px;">Hi ${session.lead.fullName}, please select a date to see live availability.</p>
-            
-            <form action="/book/confirm" method="POST">
-                <input type="hidden" name="tenantId" value="${tenantId}">
-                <input type="hidden" name="sessionId" value="${sessionId}">
-                
-                <label>Select Date:</label>
-                <input type="date" id="datePicker" name="date" required>
-                
-                <label>Select Time:</label>
-                <select id="timeSelect" name="time" required disabled>
-                    <option value="">Choose a date first...</option>
-                </select>
-                
-                <button type="submit" id="submitBtn" disabled>Confirm Booking</button>
-            </form>
-        </div>
+    const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Select a Time</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body { font-family: sans-serif; max-width: 400px; margin: 40px auto; padding: 20px; background: #f9f9f9; }
+            .card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+            h2 { margin-top: 0; font-size: 20px; }
+            label { font-weight: bold; display: block; margin: 15px 0 5px; font-size: 14px; }
+            input, select { width: 100%; padding: 12px; margin-bottom: 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+            button { background: #000; color: #fff; padding: 15px; width: 100%; border: none; font-size: 16px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+            button:disabled { background: #ccc; cursor: not-allowed; }
+        </style>
+    </head>
+    <body>
+        <div class="card">
+            <h2>📅 Book: ${session.lead.service}</h2>
+            <p style="color: #555; font-size: 14px;">Hi ${session.lead.fullName}, please select a date to see live availability.</p>
+            
+            <form action="/book/confirm" method="POST">
+                <input type="hidden" name="tenantId" value="${tenantId}">
+                <input type="hidden" name="sessionId" value="${sessionId}">
+                
+                <label>Select Date:</label>
+                <input type="date" id="datePicker" name="date" required>
+                
+                <label>Select Time:</label>
+                <select id="timeSelect" name="time" required disabled>
+                    <option value="">Choose a date first...</option>
+                </select>
+                
+                <button type="submit" id="submitBtn" disabled>Confirm Booking</button>
+            </form>
+        </div>
 
-        <script>
-            const datePicker = document.getElementById('datePicker');
-            const timeSelect = document.getElementById('timeSelect');
-            const submitBtn = document.getElementById('submitBtn');
+        <script>
+            const datePicker = document.getElementById('datePicker');
+            const timeSelect = document.getElementById('timeSelect');
+            const submitBtn = document.getElementById('submitBtn');
 
-            const today = new Date();
-            datePicker.min = today.toISOString().split("T")[0];
+            const today = new Date();
+            datePicker.min = today.toISOString().split("T")[0];
 
-            datePicker.addEventListener('change', async (e) => {
-                const selectedDate = e.target.value;
-                
-                timeSelect.innerHTML = '<option value="">Searching live calendar...</option>';
-                timeSelect.disabled = true;
-                submitBtn.disabled = true;
+            datePicker.addEventListener('change', async (e) => {
+                const selectedDate = e.target.value;
+                
+                timeSelect.innerHTML = '<option value="">Searching live calendar...</option>';
+                timeSelect.disabled = true;
+                submitBtn.disabled = true;
 
-                try {
-                    const response = await fetch('/api/calendar/slots/${tenantId}?date=' + selectedDate);
-                    const slots = await response.json();
+                try {
+                    const response = await fetch('/api/calendar/slots/${tenantId}?date=' + selectedDate);
+                    const slots = await response.json();
 
-                    timeSelect.innerHTML = '';
-                    
-                    if (slots.length === 0) {
-                        timeSelect.innerHTML = '<option value="">No times available this day</option>';
-                    } else {
-                        timeSelect.innerHTML = '<option value="">Select a time...</option>';
-                        slots.forEach(slot => {
-                            const opt = document.createElement('option');
-                            opt.value = slot;
-                            opt.textContent = slot;
-                            timeSelect.appendChild(opt);
-                        });
-                        timeSelect.disabled = false;
-                    }
-                } catch (err) {
-                    timeSelect.innerHTML = '<option value="">Error loading times</option>';
-                }
-            });
+                    timeSelect.innerHTML = '';
+                    
+                    if (slots.length === 0) {
+                        timeSelect.innerHTML = '<option value="">No times available this day</option>';
+                    } else {
+                        timeSelect.innerHTML = '<option value="">Select a time...</option>';
+                        slots.forEach(slot => {
+                            const opt = document.createElement('option');
+                            opt.value = slot;
+                            opt.textContent = slot;
+                            timeSelect.appendChild(opt);
+                        });
+                        timeSelect.disabled = false;
+                    }
+                } catch (err) {
+                    timeSelect.innerHTML = '<option value="">Error loading times</option>';
+                }
+            });
 
-            timeSelect.addEventListener('change', (e) => {
-                submitBtn.disabled = !e.target.value;
-            });
-        </script>
-    </body>
-    </html>
-    `;
-    
-    res.send(html);
+            timeSelect.addEventListener('change', (e) => {
+                submitBtn.disabled = !e.target.value;
+            });
+        </script>
+    </body>
+    </html>
+    `;
+    
+    res.send(html);
 });
 
 app.post('/book/confirm', async (req, res) => {
-    const { tenantId, sessionId, date, time } = req.body;
+    const { tenantId, sessionId, date, time } = req.body;
 
-    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
-    const session = sessionVault[sessionId];
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[sessionId];
 
-    if (!session || !session.lead) {
-        return res.status(400).send("Session expired.");
-    }
+    if (!session || !session.lead) {
+        return res.status(400).send("Session expired.");
+    }
 
-    try {
-        await finalizeBooking(tenantId, session, date, time);
+    try {
+        await finalizeBooking(tenantId, session, date, time);
 
-        const confirmationText = `Your booking is confirmed for ${date} at ${time}. We look forward to seeing you!`;
-        session.history.push({ role: "assistant", content: confirmationText });
-        session.status = "Booked";
-        session.lastUpdated = new Date().toISOString();
-        await setTenantFile(tenantId, "vault.json", sessionVault);
+        const confirmationText = `Your booking is confirmed for ${date} at ${time}. We look forward to seeing you!`;
+        session.history.push({ role: "assistant", content: confirmationText });
+        session.status = "Booked";
+        session.lastUpdated = new Date().toISOString();
+        await setTenantFile(tenantId, "vault.json", sessionVault);
 
-        if ((session.channel || "website") === "whatsapp") {
-            await sendWhatsAppMessageForTenant(tenantId, session.id, confirmationText);
-        }
+        if ((session.channel || "website") === "whatsapp") {
+            await sendWhatsAppMessageForTenant(tenantId, session.id, confirmationText);
+        }
 
-        res.send("<h2>✅ Booking Confirmed!</h2><p>You can close this window and return to your chat.</p>");
-    } catch (err) {
-        console.error("Booking confirmation failed:", err);
-        res.status(500).send("Something went wrong confirming your booking. Please try again.");
-    }
+        res.send("<h2>✅ Booking Confirmed!</h2><p>You can close this window and return to your chat.</p>");
+    } catch (err) {
+        console.error("Booking confirmation failed:", err);
+        res.status(500).send("Something went wrong confirming your booking. Please try again.");
+    }
 });
 
 // ====================================
@@ -1646,86 +1679,86 @@ app.post('/book/confirm', async (req, res) => {
 
 // List conversations for a tenant, filtered by channel ("whatsapp" or "website")
 app.get("/api/admin/conversations", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const channel = req.query.channel || "website";
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const channel = req.query.channel || "website";
 
-    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
 
 const list = Object.values(sessionVault)
-        .filter(s => (s.channel || "website") === channel)
-        .map(s => {
-            const lastMsg = (s.history || []).filter(h => h.role !== "system").slice(-1)[0];
+        .filter(s => (s.channel || "website") === channel)
+        .map(s => {
+            const lastMsg = (s.history || []).filter(h => h.role !== "system").slice(-1)[0];
 return {
-                sessionId: s.id,
-                name: s.lead?.fullName || s.name || s.id,
-                phone: s.lead?.phone || (channel === "whatsapp" ? s.id : ""),
-                status: s.status,
-                lastMessage: lastMsg?.content || "",
-                lastRole: lastMsg?.role || "",
-                lastUpdated: s.lastUpdated || "",
-                startedAt: s.startedAt || ""
-            };
-        });
+                sessionId: s.id,
+                name: s.lead?.fullName || s.name || s.id,
+                phone: s.lead?.phone || (channel === "whatsapp" ? s.id : ""),
+                status: s.status,
+                lastMessage: lastMsg?.content || "",
+                lastRole: lastMsg?.role || "",
+                lastUpdated: s.lastUpdated || "",
+                startedAt: s.startedAt || ""
+            };
+        });
 
-    res.json(list);
+    res.json(list);
 });
 
 // Get full message history for one conversation
 app.get("/api/admin/conversations/:sessionId", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
-    const session = sessionVault[req.params.sessionId];
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[req.params.sessionId];
 
-    if (!session) return res.status(404).json({ error: "Conversation not found." });
+    if (!session) return res.status(404).json({ error: "Conversation not found." });
 
 res.json({
-        sessionId: session.id,
-        channel: session.channel || "website",
-        status: session.status,
-        lead: session.lead,
-        startedAt: session.startedAt || "",
-        lastUpdated: session.lastUpdated || "",
-        messages: (session.history || []).filter(h => h.role !== "system")
-    });
+        sessionId: session.id,
+        channel: session.channel || "website",
+        status: session.status,
+        lead: session.lead,
+        startedAt: session.startedAt || "",
+        lastUpdated: session.lastUpdated || "",
+        messages: (session.history || []).filter(h => h.role !== "system")
+    });
 });
 
 // Send a manual reply into a conversation (pauses Val automatically)
 app.post("/api/admin/conversations/:sessionId/reply", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const { message } = req.body;
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const { message } = req.body;
 
-    if (!message) return res.status(400).json({ error: "Message is required." });
+    if (!message) return res.status(400).json({ error: "Message is required." });
 
-    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
-    const session = sessionVault[req.params.sessionId];
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[req.params.sessionId];
 
-    if (!session) return res.status(404).json({ error: "Conversation not found." });
+    if (!session) return res.status(404).json({ error: "Conversation not found." });
 
 session.status = "Manual Override";
-    session.history.push({ role: "assistant", content: message });
-    session.lastUpdated = new Date().toISOString();
-    await setTenantFile(tenantId, "vault.json", sessionVault);
+    session.history.push({ role: "assistant", content: message });
+    session.lastUpdated = new Date().toISOString();
+    await setTenantFile(tenantId, "vault.json", sessionVault);
 
-    if ((session.channel || "website") === "whatsapp") {
-        await sendWhatsAppMessageForTenant(tenantId, session.id, message);
-    }
+    if ((session.channel || "website") === "whatsapp") {
+        await sendWhatsAppMessageForTenant(tenantId, session.id, message);
+    }
 
-    res.json({ success: true });
+    res.json({ success: true });
 });
 
 // Delete a conversation entirely
 app.delete("/api/admin/conversations/:sessionId", async (req, res) => {
-    const tenantId = req.headers["x-tenant-id"] || "default";
-    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
 
-    if (!sessionVault[req.params.sessionId]) {
-        return res.status(404).json({ error: "Conversation not found." });
-    }
+    if (!sessionVault[req.params.sessionId]) {
+        return res.status(404).json({ error: "Conversation not found." });
+    }
 
-    delete sessionVault[req.params.sessionId];
-    await setTenantFile(tenantId, "vault.json", sessionVault);
+    delete sessionVault[req.params.sessionId];
+    await setTenantFile(tenantId, "vault.json", sessionVault);
 
-    res.json({ success: true });
+    res.json({ success: true });
 });
 
 // ====================================
@@ -1735,24 +1768,24 @@ app.delete("/api/admin/conversations/:sessionId", async (req, res) => {
 
 cron.schedule("59 23 * * *", async () => {
 
-    console.log("Generating nightly report...");
+    console.log("Generating nightly report...");
 
-    const tenantIds = await listTenantIds();
+    const tenantIds = await listTenantIds();
 
-    let totalDeals = 0;
+    let totalDeals = 0;
 
-    for (const tenantId of tenantIds) {
-        const deals = await getTenantLog(tenantId, "deals.json");
-        totalDeals += deals.length;
-    }
+    for (const tenantId of tenantIds) {
+        const deals = await getTenantLog(tenantId, "deals.json");
+        totalDeals += deals.length;
+    }
 
-    const message =
-        `📈 NIGHTLY REPORT: ${totalDeals} total deals closed across all businesses.`;
+    const message =
+        `📈 NIGHTLY REPORT: ${totalDeals} total deals closed across all businesses.`;
 
-    sendAlert(
-        "admin",
-        message
-    );
+    sendAlert(
+        "admin",
+        message
+    );
 
 });
 
@@ -1762,21 +1795,21 @@ cron.schedule("59 23 * * *", async () => {
 
 cron.schedule("*/10 * * * *", async () => {
 
-    try {
+    try {
 
-        console.log("Refreshing client calendars...");
+        console.log("Refreshing client calendars...");
 
-        const tenantIds = await listTenantIds();
+        const tenantIds = await listTenantIds();
 
-        for (const tenantId of tenantIds) {
-            await updateCalendarSync(tenantId);
-        }
+        for (const tenantId of tenantIds) {
+            await updateCalendarSync(tenantId);
+        }
 
-    } catch (err) {
+    } catch (err) {
 
-        console.error(err);
+        console.error(err);
 
-    }
+    }
 
 });
 
@@ -1784,14 +1817,14 @@ cron.schedule("*/10 * * * *", async () => {
 // If the database connection fails, the server won't start at all — better
 // to fail loudly than to silently run with no working storage.
 connectDB()
-    .then(() => {
-        app.listen(PORT, () => {
-            console.log(`🚀 ENTERPRISE ENGINE LIVE (MongoDB-backed)`);
-        });
-    })
-    .catch((err) => {
-        console.error("Failed to connect to MongoDB. Server not started.", err);
-        process.exit(1);
-    });
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`🚀 ENTERPRISE ENGINE LIVE (MongoDB-backed)`);
+        });
+    })
+    .catch((err) => {
+        console.error("Failed to connect to MongoDB. Server not started.", err);
+        process.exit(1);
+    });
 
 module.exports = { app, processValMessage };
