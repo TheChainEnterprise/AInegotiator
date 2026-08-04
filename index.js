@@ -1235,8 +1235,18 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         };
     }
 
-    const session = sessionVault[sessionId];
+const session = sessionVault[sessionId];
     session.channel = channel;
+    session.lastUpdated = new Date().toISOString();
+
+    // Records the user's message + Val's reply into history, then returns the reply.
+    // Used for every early-return path so the dashboard always shows the full conversation.
+    const recordAndReturn = async (replyText) => {
+        session.history.push({ role: "user", content: messageText });
+        session.history.push({ role: "assistant", content: replyText });
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+        return replyText;
+    };
 
     // ====================================
     // HUMAN HANDOFF
@@ -1266,7 +1276,7 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         session.status = "Waiting For Human";
         session.intent = "human_handoff";
 
-        if (!session.lead) {
+if (!session.lead) {
             session.lead = {
                 fullName: "",
                 phone: "",
@@ -1277,17 +1287,15 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
             };
         }
 
-        await setTenantFile(tenantId, "vault.json", sessionVault);
-
         if (!session.lead.fullName) {
-            return "Absolutely. I'll arrange for a member of our team to contact you. First, may I have your full name?";
+            return await recordAndReturn("Absolutely. I'll arrange for a member of our team to contact you. First, may I have your full name?");
         }
 
         if (!session.lead.phone) {
-            return "Thank you. What's the best phone number or WhatsApp number to reach you?";
+            return await recordAndReturn("Thank you. What's the best phone number or WhatsApp number to reach you?");
         }
 
-        return "Perfect. I'll notify our team immediately and someone will contact you on WhatsApp as soon as possible.";
+        return await recordAndReturn("Perfect. I'll notify our team immediately and someone will contact you on WhatsApp as soon as possible.");
     }
 
     // If a human has taken over this conversation, Val stays silent.
@@ -1365,14 +1373,12 @@ if (
     !session.handoffNotified
 ) {
 
-    if (!session.lead.fullName) {
-        await setTenantFile(tenantId, "vault.json", sessionVault);
-        return "May I have your full name?";
+if (!session.lead.fullName) {
+        return await recordAndReturn("May I have your full name?");
     }
 
     if (!session.lead.phone) {
-        await setTenantFile(tenantId, "vault.json", sessionVault);
-        return "Thank you. What's the best WhatsApp or phone number to reach you?";
+        return await recordAndReturn("Thank you. What's the best WhatsApp or phone number to reach you?");
     }
 
     console.log("🚨 Sending human handoff alert...");
@@ -1527,7 +1533,7 @@ app.get("/api/admin/conversations", async (req, res) => {
 
     const sessionVault = await getTenantFile(tenantId, "vault.json", {});
 
-    const list = Object.values(sessionVault)
+const list = Object.values(sessionVault)
         .filter(s => (s.channel || "website") === channel)
         .map(s => {
             const lastMsg = (s.history || []).filter(h => h.role !== "system").slice(-1)[0];
@@ -1537,7 +1543,8 @@ app.get("/api/admin/conversations", async (req, res) => {
                 phone: s.lead?.phone || (channel === "whatsapp" ? s.id : ""),
                 status: s.status,
                 lastMessage: lastMsg?.content || "",
-                lastRole: lastMsg?.role || ""
+                lastRole: lastMsg?.role || "",
+                lastUpdated: s.lastUpdated || ""
             };
         });
 
@@ -1573,13 +1580,29 @@ app.post("/api/admin/conversations/:sessionId/reply", async (req, res) => {
 
     if (!session) return res.status(404).json({ error: "Conversation not found." });
 
-    session.status = "Manual Override";
+session.status = "Manual Override";
     session.history.push({ role: "assistant", content: message });
+    session.lastUpdated = new Date().toISOString();
     await setTenantFile(tenantId, "vault.json", sessionVault);
 
     if ((session.channel || "website") === "whatsapp") {
         await sendWhatsAppMessageForTenant(tenantId, session.id, message);
     }
+
+    res.json({ success: true });
+});
+
+// Delete a conversation entirely
+app.delete("/api/admin/conversations/:sessionId", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+
+    if (!sessionVault[req.params.sessionId]) {
+        return res.status(404).json({ error: "Conversation not found." });
+    }
+
+    delete sessionVault[req.params.sessionId];
+    await setTenantFile(tenantId, "vault.json", sessionVault);
 
     res.json({ success: true });
 });
