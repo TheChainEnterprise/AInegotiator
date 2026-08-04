@@ -1249,12 +1249,13 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
     const lowerMessage = messageText.toLowerCase();
 
     // Automatically create a visitor session if it doesn't exist
-    if (!sessionVault[sessionId]) {
+if (!sessionVault[sessionId]) {
         sessionVault[sessionId] = {
             id: sessionId,
             name: "Visitor",
             label: "Chat",
             channel: channel,
+            startedAt: new Date().toISOString(),
             price: 0,
             status: "Active",
             lead: {
@@ -1567,14 +1568,15 @@ const list = Object.values(sessionVault)
         .filter(s => (s.channel || "website") === channel)
         .map(s => {
             const lastMsg = (s.history || []).filter(h => h.role !== "system").slice(-1)[0];
-            return {
+return {
                 sessionId: s.id,
                 name: s.lead?.fullName || s.name || s.id,
                 phone: s.lead?.phone || (channel === "whatsapp" ? s.id : ""),
                 status: s.status,
                 lastMessage: lastMsg?.content || "",
                 lastRole: lastMsg?.role || "",
-                lastUpdated: s.lastUpdated || ""
+                lastUpdated: s.lastUpdated || "",
+                startedAt: s.startedAt || ""
             };
         });
 
@@ -1589,11 +1591,13 @@ app.get("/api/admin/conversations/:sessionId", async (req, res) => {
 
     if (!session) return res.status(404).json({ error: "Conversation not found." });
 
-    res.json({
+res.json({
         sessionId: session.id,
         channel: session.channel || "website",
         status: session.status,
         lead: session.lead,
+        startedAt: session.startedAt || "",
+        lastUpdated: session.lastUpdated || "",
         messages: (session.history || []).filter(h => h.role !== "system")
     });
 });
