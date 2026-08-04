@@ -162,24 +162,40 @@ app.get("/api/bookings", async (req, res) => {
 });
 
 app.get('/api/clients', async (req, res) => {
-    const tenantId = req.headers['x-tenant-id'] || 'default';
-    let sessionVault = await getTenantFile(tenantId, "vault.json", null);
-    
-    if (!sessionVault || Object.keys(sessionVault).length === 0) {
-        sessionVault = INITIAL_VAULT;
-        await setTenantFile(tenantId, "vault.json", sessionVault);
-    }
-    
-    const clientList = Object.values(sessionVault).map(c => ({
-        id: c.id || c.sessionId || "client-id",
-        name: c.name || c.lead?.fullName || "Valued Client",
-        label: c.label || "Active Client",
-        price: c.price || 1000,
-        status: c.status || "Active",
-        analysis: c.analysis || { buyerProfile: "Standard", objectionType: "None", concessionStep: "Stable" }
-    }));
+    try {
+        const tenantIds = await listTenantIds();
+        const clients = [];
+        
+        for (const tId of tenantIds) {
+            const biz = await getTenantFile(tId, "business.json", { businessName: tId, industry: "AI Receptionist" });
+            clients.push({
+                id: tId,
+                name: biz.businessName || tId,
+                label: biz.industry || "Active Business",
+                price: biz.price || 1000,
+                status: "Active",
+                analysis: { buyerProfile: "Configured Tenant", objectionType: "None", concessionStep: "Stable" }
+            });
+        }
 
-    res.json(clientList);
+        if (clients.length === 0) {
+            clients.push({
+                id: "the_chain_technologies",
+                name: "The Chain Technologies",
+                label: "AI Solutions",
+                price: 1500,
+                status: "Active",
+                analysis: { buyerProfile: "Primary Tenant", objectionType: "None", concessionStep: "Stable" }
+            });
+        }
+
+        res.json(clients);
+    } catch (err) {
+        console.error("Clients API Error:", err);
+        res.json([
+            { id: "the_chain_technologies", name: "The Chain Technologies", label: "AI Solutions", price: 1500, status: "Active", analysis: { buyerProfile: "Primary Tenant", objectionType: "None", concessionStep: "Stable" } }
+        ]);
+    }
 });
 
 app.get("/api/admin/conversations", async (req, res) => {
