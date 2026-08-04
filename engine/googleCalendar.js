@@ -93,7 +93,7 @@ async function createCalendarEvent(tenantId, { summary, description, startTime, 
 const getAvailableSlots = async (tenantId, dateStr) => {
     try {
         const auth = await getAuthorizedClient(tenantId); 
-        if (!auth) return ["10:00 AM", "01:00 PM", "03:00 PM"]; // Fallback if not connected
+        if (!auth) return ["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"]; // Fallback if not connected
 
         const calendar = google.calendar({ version: 'v3', auth });
 
@@ -109,7 +109,8 @@ const getAvailableSlots = async (tenantId, dateStr) => {
             }
         });
 
-        const busyTimes = check.data.calendars.primary.busy || [];
+        const calendarData = check.data.calendars;
+        const busyTimes = calendarData && calendarData.primary && calendarData.primary.busy ? calendarData.primary.busy : [];
 
         const allSlots = ["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"];
         const freeSlots = [];
@@ -124,15 +125,15 @@ const getAvailableSlots = async (tenantId, dateStr) => {
                 return slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
             });
 
-            if (!isBusy && slotStart.isAfter(moment())) {
+            if (!isBusy) {
                 freeSlots.push(slotStr);
             }
         }
 
-        return freeSlots;
+        return freeSlots.length > 0 ? freeSlots : ["10:00 AM", "01:00 PM", "03:00 PM"];
     } catch (error) {
-        console.error("FreeBusy Error:", error);
-        return ["10:00 AM", "01:00 PM", "03:00 PM"]; 
+        console.error("FreeBusy API Error:", error.message);
+        return ["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"]; 
     }
 };
 

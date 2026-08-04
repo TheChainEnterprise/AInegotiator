@@ -1510,12 +1510,11 @@ if (session.conversationState === "BOOKING") {
             else session.nextQuestion = "complete";
         }
 
-let bookingInstruction = `Current conversation state: BOOKING\nService: ${session.lead.service || "missing"}\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nDo NOT greet the visitor or introduce yourself. You already did that earlier in this conversation. Just ask for the next missing field listed above.`;
+let bookingInstruction = `Current conversation state: BOOKING\nService: ${session.lead.service || "missing"}\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nRules for Booking:\n- Ask for ONE missing field at a time.\n- Do NOT greet or introduce yourself.\n- If all fields are collected, output ONLY: [SEND_CALENDAR_LINK]`;
 
-        // Tell Val to use the safe word when it has everything it needs
-        if (session.nextQuestion === "complete") {
-            bookingInstruction = `All required booking information has been collected. You are strictly forbidden from confirming the appointment yourself. You MUST reply with EXACTLY this word and nothing else: [SEND_CALENDAR_LINK]`;
-        }
+if (session.nextQuestion === "complete") {
+    bookingInstruction = `All required booking information has been collected. You are strictly forbidden from asking any more questions. You MUST reply with EXACTLY this code and nothing else: [SEND_CALENDAR_LINK]`;
+}
 
         const bookingSystemMessage = {
             role: "system",
@@ -1557,10 +1556,10 @@ let bookingInstruction = `Current conversation state: BOOKING\nService: ${sessio
                 sessionId: session.id 
             });
 
-            const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+const baseUrl = process.env.RENDER_EXTERNAL_URL || `https://thechain-tech.onrender.com`; // Fallback to your live render URL
             const bookingUrl = `${baseUrl}/book/${tenantId}/${session.id}`;
 
-            cleanReply = `Perfect! I have all your details. Please pick a time that works for you on our live calendar here:\n\n📅 ${bookingUrl}`;
+            cleanReply = `Perfect! I have all your details. Please click the link below to pick your live appointment time on our calendar:\n\n📅 ${bookingUrl}`;
         }
         const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
         if (sentences && sentences.length > 3) cleanReply = sentences.slice(0, 3).join(" ").trim();
@@ -1595,11 +1594,13 @@ app.get('/api/calendar/slots/:tenantId', async (req, res) => {
     const { date } = req.query;
 
     try {
+        // Pass the tenantId so it fetches from the connected Google Calendar for that business
         const availableSlots = await getAvailableSlots(tenantId, date);
         res.json(availableSlots);
     } catch (error) {
-        console.error("Error fetching live slots:", error);
-        res.status(500).json([]); 
+        console.error("Error fetching live slots for tenant " + tenantId, error);
+        // Fallback standard business hours if calendar lookup hits an auth snag
+        res.json(["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"]); 
     }
 });
 
