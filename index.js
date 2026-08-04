@@ -51,7 +51,11 @@ const manualMessageRoutes = require("./routes/manualMessage");
 const requireInboxAuth = manualMessageRoutes.requireInboxAuth;
 const { getAuthUrl, handleOAuthCallback, isCalendarConnected, createCalendarEvent, getAvailableSlots } = require("./engine/googleCalendar");
 
-const finalApiKey = process.env.GROQ_API_KEY || "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";
+// 1. FIXED: Removed hardcoded API key fallback and throw error if missing
+const finalApiKey = process.env.GROQ_API_KEY;
+if (!finalApiKey) {
+    throw new Error("Missing GROQ_API_KEY");
+}
 const groq = new Groq({ apiKey: finalApiKey });
 
 const app = express();
@@ -91,11 +95,7 @@ const sendAlert = (tenantId, message) => {
     }
 };
 
-const INITIAL_VAULT = {
-  "client-xyz": { id: "client-xyz", name: "Sarah Jenkins", label: "Skincare Inquiry", price: 1000, status: "Active", history: [], analysis: { buyerProfile: "Analyzing...", objectionType: "None", concessionStep: "Baseline Stable" } },
-  "client-abc": { id: "client-abc", name: "Marcus Vance", label: "Botox Consultation", price: 1200, status: "Active", history: [], analysis: { buyerProfile: "High Net Worth", objectionType: "None", concessionStep: "Baseline Stable" } },
-  "client-123": { id: "client-123", name: "Elena Rostova", label: "Laser Resurfacing", price: 950, status: "Active", history: [], analysis: { buyerProfile: "Decisive Buyer", objectionType: "None", concessionStep: "Baseline Stable" } }
-};
+const INITIAL_VAULT = {};
 
 const buildSystemPrompt = async (tenantId, userMessage = "") => {
     const defaultBusiness = {
@@ -116,6 +116,8 @@ const buildSystemPrompt = async (tenantId, userMessage = "") => {
     const retrievedFaq = retrieved.filter(r => r.source === "faq.json").map(r => r.item);
     const retrievedKnowledge = retrieved.filter(r => r.source === "knowledge.json").map(r => r.item);
 
+    // 2. FIXED: Removed unused 'learnedRules' file-loading block entirely to eliminate dead code.
+
     return `
 You are Val, the professional AI receptionist and representative for ${business.businessName}.
 
@@ -131,12 +133,21 @@ Website: ${business.website}
 SERVICES:
 ${retrievedServices.map(service => `Name: ${service.name}\nDescription: ${service.description}\n${service.price ? `Price: $${service.price}` : ""}`).join("\n")}
 
+FAQs:
+${retrievedFaq.map(item => `Q: ${item.question}\nA: ${item.answer}`).join("\n")}
+
+KNOWLEDGE BASE:
+${retrievedKnowledge.map(item => `Title: ${item.title}\n${item.content}`).join("\n")}
+
 YOUR ROLE & CONVERSATION STYLE:
 - Act completely natural, warm, and human, like an experienced receptionist.
 - Never sound robotic or like ChatGPT. 
 - Keep responses concise (under 70 words, max 3 sentences).
 - Guide visitors naturally. If they want to book, have a conversational dialogue to gather their full name, phone, and email organically.
-- Once you have gathered their name, phone, and email, tell them you are ready to book their appointment and output the tag [[TRIGGER_BOOKING_MODAL]] so the system can launch the live schedule picker.
+- Once you have gathered their name, phone, and email, tell them you are ready to book their appointment and output the tag [[OPEN_BOOKING_MODAL]] so the system can launch the live schedule picker.
+
+Always finish with telemetry analysis metadata:
+[[ PROFILE: <Type> | OBJECTION: <Vector> | CONCESSION: <Step> ]]
 `;
 };
 
@@ -155,75 +166,308 @@ app.get('/api/leads', async (req, res) => {
     res.json(leads);
 });
 
+app.delete("/api/leads/:id", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const targetId = Number(req.params.id);
+    await deleteTenantLogEntry(tenantId, "leads.json", targetId);
+    res.json({ success: true });
+});
+
+app.post("/api/leads", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const lead = { id: Date.now(), ...req.body };
+    await appendTenantLog(tenantId, "leads.json", lead);
+    res.json({ success: true, lead });
+});
+
+app.put("/api/leads/:id", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const targetId = Number(req.params.id);
+    const { id, ...updates } = req.body;
+    const updated = await updateTenantLogEntry(tenantId, "leads.json", targetId, updates);
+    if (!updated) return res.status(404).json({ error: "Lead not found" });
+    res.json({ success: true });
+});
+
 app.get("/api/bookings", async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
     const bookings = await getTenantLog(tenantId, "bookings.json");
     res.json(bookings);
 });
 
+app.post("/api/bookings", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const booking = { id: Date.now(), ...req.body };
+    await appendTenantLog(tenantId, "bookings.json", booking);
+    res.json({ success: true, booking });
+});
+
+app.delete("/api/bookings/:id", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const targetId = Number(req.params.id);
+    await deleteTenantLogEntry(tenantId, "bookings.json", targetId);
+    res.json({ success: true });
+});
+
+app.put("/api/bookings/:id", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const targetId = Number(req.params.id);
+    const { id, ...updates } = req.body;
+    const updated = await updateTenantLogEntry(tenantId, "bookings.json", targetId, updates);
+    if (!updated) return res.status(404).json({ error: "Booking not found." });
+    res.json({ success: true, booking: updated });
+});
+
 app.get('/api/clients', async (req, res) => {
+    const tenantId = req.headers['x-tenant-id'] || 'default';
+    let sessionVault = await getTenantFile(tenantId, "vault.json", null);
+    if (!sessionVault) {
+        sessionVault = INITIAL_VAULT;
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+    }
+    res.json(Object.values(sessionVault).map(c => ({ id: c.id, name: c.name, label: c.label, price: c.price, status: c.status, analysis: c.analysis })));
+});
+
+// ====================================
+// RESTORED ADMIN CLIENT MANAGEMENT & CONFIG APIS
+// ====================================
+
+app.get("/api/admin/clients", async (req, res) => {
+    const tenantIds = await listTenantIds();
+    const clients = await Promise.all(
+        tenantIds.map(async (tenantId) => {
+            const business = await getTenantFile(tenantId, "business.json", null);
+            if (!business) return null;
+            return { id: tenantId, ...business };
+        })
+    );
+    res.json(clients.filter(Boolean));
+});
+
+app.post("/api/admin/clients", async (req, res) => {
+    const { id, businessName, industry, website, email, phone } = req.body;
+    if (!id || !businessName) {
+        return res.status(400).json({ error: "Missing client information." });
+    }
+    const existing = await getTenantFile(id, "business.json", null);
+    if (existing) {
+        return res.status(409).json({ error: "Client already exists." });
+    }
+    await setTenantFile(id, "business.json", {
+        businessName, industry, website, email, phone,
+        description: "", address: "", whatsapp: phone, bookingUrl: "", tone: "Professional", openingHours: {}
+    });
+    await setTenantFile(id, "services.json", []);
+    await setTenantFile(id, "faq.json", []);
+    await setTenantFile(id, "knowledge.json", []);
+    await setTenantFile(id, "availability.json", { availableSlots: [] });
+    await setTenantFile(id, "vault.json", {});
+    res.json({ success: true });
+});
+
+app.delete("/api/admin/clients/:id", async (req, res) => {
+    const existing = await getTenantFile(req.params.id, "business.json", null);
+    if (!existing) {
+        return res.status(404).json({ error: "Client not found." });
+    }
+    await deleteTenantData(req.params.id);
+    res.json({ success: true });
+});
+
+app.get("/api/admin/profile", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const business = await getTenantFile(tenantId, "business.json", {
+        businessName: "", industry: "", description: "", website: "", email: "", phone: "", whatsapp: "", address: "", bookingUrl: "", tone: "Professional", openingHours: {}
+    });
+    res.json(business);
+});
+
+app.post("/api/admin/profile", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    await setTenantFile(tenantId, "business.json", req.body);
+    res.json({ success: true });
+});
+
+app.get("/api/admin/behaviour", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const behaviour = await getTenantFile(tenantId, "behaviour.json", {
+        personality: "Professional", responseLength: "Short", emojiUsage: false, salesStyle: "Balanced", humor: false, greeting: "", closing: "", customInstructions: ""
+    });
+    res.json(behaviour);
+});
+
+app.post("/api/admin/behaviour", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    await setTenantFile(tenantId, "behaviour.json", req.body);
+    res.json({ success: true });
+});
+
+app.get("/api/admin/faq", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const faq = await getTenantFile(tenantId, "faq.json", []);
+    res.json(faq);
+});
+
+app.post("/api/admin/faq", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    await setTenantFile(tenantId, "faq.json", req.body);
+    res.json({ success: true });
+});
+
+app.get("/api/admin/services", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const services = await getTenantFile(tenantId, "services.json", []);
+    res.json(services);
+});
+
+app.post("/api/admin/services", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    await setTenantFile(tenantId, "services.json", req.body);
+    res.json({ success: true });
+});
+
+app.get("/api/admin/knowledge", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const knowledge = await getTenantFile(tenantId, "knowledge.json", []);
+    res.json(knowledge);
+});
+
+app.post("/api/admin/knowledge", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    await setTenantFile(tenantId, "knowledge.json", req.body);
+    res.json({ success: true });
+});
+
+app.get("/api/admin/import", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const importDoc = await getTenantFile(tenantId, "import.json", null);
+    if (!importDoc) return res.json({ exists: false });
+    res.json({ exists: true, ...importDoc });
+});
+
+app.post("/api/admin/import", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
     try {
-        const tenantIds = await listTenantIds();
-        const clients = [];
-        
-        for (const tId of tenantIds) {
-            const biz = await getTenantFile(tId, "business.json", { businessName: tId, industry: "AI Receptionist" });
-            clients.push({
-                id: tId,
-                name: biz.businessName || tId,
-                label: biz.industry || "Active Business",
-                price: biz.price || 1000,
-                status: "Active",
-                analysis: { buyerProfile: "Configured Tenant", objectionType: "None", concessionStep: "Stable" }
-            });
+        const website = req.body.website;
+        if (!website) return res.status(400).json({ error: "Website URL is required." });
+
+        const pages = await crawlWebsite(website);
+        const imported = await processWebsiteContent(pages);
+
+        if (!imported || typeof imported !== "object" || !imported.business || !Array.isArray(imported.services) || !Array.isArray(imported.faq) || !Array.isArray(imported.knowledge)) {
+            throw new Error("Importer returned invalid data.");
         }
 
-        if (clients.length === 0) {
-            clients.push({
-                id: "the_chain_technologies",
-                name: "The Chain Technologies",
-                label: "AI Solutions",
-                price: 1500,
-                status: "Active",
-                analysis: { buyerProfile: "Primary Tenant", objectionType: "None", concessionStep: "Stable" }
+        const existingBusiness = await getTenantFile(tenantId, "business.json", {});
+        const mergedBusiness = { ...existingBusiness };
+        for (const [key, value] of Object.entries(imported.business)) {
+            if (value && String(value).trim() !== "") mergedBusiness[key] = value;
+        }
+        await setTenantFile(tenantId, "business.json", mergedBusiness);
+
+        const existingServices = await getTenantFile(tenantId, "services.json", []);
+        const serviceMap = new Map();
+        for (const service of existingServices) {
+            if (!service?.name) continue;
+            serviceMap.set(service.name.trim().toLowerCase(), { ...service });
+        }
+        for (const service of imported.services) {
+            if (!service?.name) continue;
+            const key = service.name.trim().toLowerCase();
+            const existing = serviceMap.get(key) || {};
+            serviceMap.set(key, {
+                ...existing,
+                name: service.name || existing.name,
+                description: service.description?.trim() ? service.description : existing.description,
+                price: service.price?.toString().trim() ? service.price : existing.price,
+                monthly: service.monthly?.toString().trim() ? service.monthly : existing.monthly
             });
         }
+        await setTenantFile(tenantId, "services.json", [...serviceMap.values()]);
 
-        res.json(clients);
+        const existingFaq = await getTenantFile(tenantId, "faq.json", []);
+        const faqMap = new Map();
+        for (const item of existingFaq) {
+            if (!item?.question) continue;
+            faqMap.set(item.question.trim().toLowerCase(), { ...item });
+        }
+        for (const item of imported.faq) {
+            if (!item?.question) continue;
+            const key = item.question.trim().toLowerCase();
+            const existing = faqMap.get(key) || {};
+            faqMap.set(key, {
+                ...existing,
+                question: item.question || existing.question,
+                answer: item.answer?.trim() ? item.answer : existing.answer
+            });
+        }
+        await setTenantFile(tenantId, "faq.json", [...faqMap.values()]);
+
+        const existingKnowledge = await getTenantFile(tenantId, "knowledge.json", []);
+        const knowledgeMap = new Map();
+        for (const article of existingKnowledge) {
+            if (!article?.title) continue;
+            knowledgeMap.set(article.title.trim().toLowerCase(), { ...article });
+        }
+        for (const article of imported.knowledge) {
+            if (!article?.title) continue;
+            if (typeof article.content !== "string") article.content = JSON.stringify(article.content ?? "");
+            if (typeof article.source !== "string") article.source = "";
+            const key = article.title.trim().toLowerCase();
+            const existing = knowledgeMap.get(key) || {};
+            knowledgeMap.set(key, {
+                ...existing,
+                title: article.title || existing.title,
+                content: typeof article.content === "string" && article.content.trim() ? article.content : existing.content,
+                source: typeof article.source === "string" && article.source.trim() ? article.source : existing.source
+            });
+        }
+        await setTenantFile(tenantId, "knowledge.json", [...knowledgeMap.values()]);
+
+        await setTenantFile(tenantId, "import.json", { website, status: "Imported", createdAt: new Date().toISOString() });
+
+        res.json({ success: true });
     } catch (err) {
-        console.error("Clients API Error:", err);
-        res.json([
-            { id: "the_chain_technologies", name: "The Chain Technologies", label: "AI Solutions", price: 1500, status: "Active", analysis: { buyerProfile: "Primary Tenant", objectionType: "None", concessionStep: "Stable" } }
-        ]);
+        console.error(err);
+        res.status(500).json({ error: "Website import failed." });
     }
 });
 
-app.get("/api/admin/conversations", async (req, res) => {
+app.delete("/api/admin/import", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const channel = req.query.channel || "website";
-
-    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
-
-    const list = Object.values(sessionVault)
-        .filter(s => (s.channel || "website") === channel)
-        .map(s => {
-            const lastMsg = (s.history || []).filter(h => h.role !== "system").slice(-1)[0];
-            return {
-                sessionId: s.id,
-                name: s.lead?.fullName || s.name || s.id,
-                phone: s.lead?.phone || (channel === "whatsapp" ? s.id : ""),
-                status: s.status,
-                lastMessage: lastMsg?.content || "",
-                lastRole: lastMsg?.role || "",
-                lastUpdated: s.lastUpdated || "",
-                startedAt: s.startedAt || ""
-            };
-        });
-
-    res.json(list);
+    await deleteTenantFile(tenantId, "import.json");
+    res.json({ success: true });
 });
 
+// Google Calendar Oauth routes
+app.get("/api/admin/calendar/connect", (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || req.query.tenant || "default";
+    const url = getAuthUrl(tenantId);
+    res.json({ url });
+});
+
+app.get("/api/admin/calendar/oauth/callback", async (req, res) => {
+    const { code, state } = req.query;
+    const tenantId = state || "default";
+    try {
+        await handleOAuthCallback(code, tenantId);
+        res.send(`<html><body style="font-family:Arial;padding:40px;"><h2>Google Calendar Connected</h2><p>You can close this window and return to your dashboard.</p></body></html>`);
+    } catch (err) {
+        console.error("Google Calendar OAuth error:", err);
+        res.status(500).send("Failed to connect Google Calendar: " + err.message);
+    }
+});
+
+app.get("/api/admin/calendar/list", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const connected = await isCalendarConnected(tenantId);
+    res.json({ connected });
+});
+
+// ====================================
 // RESTORED UNIFIED INBOX & CONVERSATIONS API
+// ====================================
+
 app.get("/api/admin/conversations", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
     const channel = req.query.channel || "website";
@@ -363,7 +607,7 @@ async function finalizeBooking(tenantId, session, date, time) {
     return bookingRecord;
 }
 
-// NATURAL DYNAMIC CONVERSATION ENGINE (RESTORED NATURAL RECEPTIONIST BEHAVIOR)
+// NATURAL DYNAMIC CONVERSATION ENGINE
 const processValMessage = async (tenantId, sessionId, messageText, channel = "website") => {
     let sessionVault = await getTenantFile(tenantId, "vault.json", null);
     if (!sessionVault) sessionVault = INITIAL_VAULT;
@@ -373,6 +617,7 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
             id: sessionId, name: "Visitor", label: "Chat", channel: channel,
             startedAt: new Date().toISOString(), price: 0, status: "Active",
             lead: { fullName: "", phone: "", email: "", service: "", preferredDate: "", preferredTime: "" },
+            conversationState: "DISCUSSION",
             history: [],
             analysis: { buyerProfile: "Unknown", objectionType: "Unknown", concessionStep: "None" }
         };
@@ -383,8 +628,19 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
     session.lastUpdated = new Date().toISOString();
 
     if (!session.lead) session.lead = { fullName: "", phone: "", email: "", service: "", preferredDate: "", preferredTime: "" };
+    if (!session.conversationState) session.conversationState = "DISCUSSION";
 
     const lowerMessage = messageText.toLowerCase();
+
+    if (session.conversationState === "BOOKING") {
+        // Stay in BOOKING state until fields are gathered or completed
+    } else if (lowerMessage.includes("book") || lowerMessage.includes("appointment")) {
+        session.conversationState = "BOOKING";
+    } else if (lowerMessage.includes("price") || lowerMessage.includes("cost") || lowerMessage.includes("how much")) {
+        session.conversationState = "PRICING";
+    } else {
+        session.conversationState = "DISCUSSION";
+    }
 
     // Natural data extraction
     const emailMatch = messageText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
@@ -393,7 +649,6 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
     const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
     if (phoneMatch) session.lead.phone = phoneMatch[0];
 
-    // Contextual name extraction if missing
     const nameMatch = messageText.match(/(?:my name is|i am|i'm|it's|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
     if (nameMatch) {
         session.lead.fullName = nameMatch[1];
@@ -422,6 +677,9 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
             session.waitingForSlotSelection = false;
             session.offeredSlots = null;
             session.status = "Booked";
+            session.conversationState = "DISCUSSION";
+            // 3. FIXED: Purged any leftover isBookingFlow flag just in case
+            delete session.isBookingFlow;
             await setTenantFile(tenantId, "vault.json", sessionVault);
             return `✅ Your booking is confirmed for ${session.lead.preferredDate} at ${session.lead.preferredTime}! We have sent a confirmation to your email.`;
         }
@@ -438,17 +696,18 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         const response = await groq.chat.completions.create({ model: "llama-3.1-8b-instant", messages: session.history, temperature: 0.5 });
         let fullReply = response.choices[0].message.content;
 
+        const metaMatch = fullReply.match(/\[\[\s*PROFILE:\s*(.*?)\s*\|\s*OBJECTION:\s*(.*?)\s*\|\s*CONCESSION:\s*(.*?)\s*\]\]/);
+        if (metaMatch) {
+            session.analysis = { buyerProfile: metaMatch[1], objectionType: metaMatch[2], concessionStep: metaMatch[3] };
+        }
+
         let cleanReply = fullReply.replace(/\[\[.*?\]\]/g, "").trim();
 
-        // Check what info is still missing to ensure natural conversational flow
         const hasName = !!session.lead.fullName;
         const hasPhone = !!session.lead.phone;
         const hasEmail = !!session.lead.email;
 
-        // If user wants to book or talk about booking, guide them naturally step-by-step
-        if (lowerMessage.includes("book") || lowerMessage.includes("appointment") || session.isBookingFlow) {
-            session.isBookingFlow = true;
-
+        if (session.conversationState === "BOOKING") {
             if (!hasName) {
                 cleanReply = "I'd love to help you book an appointment! May I please have your full name?";
             } else if (!hasPhone) {
@@ -458,7 +717,6 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
             }
         }
 
-        // Once ALL info is gathered, trigger website modal or WhatsApp slot picker
         const hasAllInfo = hasName && hasPhone && hasEmail;
 
         if (hasAllInfo) {
@@ -477,7 +735,7 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         }
 
         session.history.push({ role: "assistant", content: cleanReply });
-        session.history = [session.history[0], ...session.history.slice(-8)];
+        session.history = [session.history[0], ...session.history.slice(-12)];
 
         await logAudit(tenantId, sessionId, messageText, fullReply, session.analysis);
         await setTenantFile(tenantId, "vault.json", sessionVault);
@@ -519,7 +777,14 @@ app.post('/book/confirm', async (req, res) => {
     try {
         await finalizeBooking(tenantId, session, date, time);
         session.status = "Booked";
+        session.conversationState = "DISCUSSION";
+        // 3. FIXED: Purged any leftover isBookingFlow flag just in case
+        delete session.isBookingFlow;
         session.lastUpdated = new Date().toISOString();
+        
+        const confirmationText = `Your booking is confirmed for ${date} at ${time}. We look forward to seeing you!`;
+        session.history.push({ role: "assistant", content: confirmationText });
+
         await setTenantFile(tenantId, "vault.json", sessionVault);
 
         res.json({ success: true, message: "Booking Confirmed" });
