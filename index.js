@@ -1383,10 +1383,16 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         return null;
     }
 
+    // ====================================
+    // CONVERSATION STATE LOCK FIX
+    // ====================================
     if (lowerMessage.includes("book")) {
         session.conversationState = "BOOKING";
     } else if (lowerMessage.includes("price") || lowerMessage.includes("cost") || lowerMessage.includes("how much")) {
         session.conversationState = "PRICING";
+    } else if (session.conversationState === "BOOKING" && !session.lead?.saved) {
+        // Keep them securely in BOOKING state while we collect their information
+        session.conversationState = "BOOKING"; 
     } else {
         session.conversationState = "DISCUSSION";
     }
@@ -1402,15 +1408,21 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
     if (phoneMatch) session.lead.phone = phoneMatch[0];
 
     const nameMatch = messageText.match(/(?:my name is|i am|i'm|it's|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
+    
+    // ====================================
+    // NAME EXTRACTION FIX
+    // ====================================
     if (nameMatch) {
         session.lead.fullName = nameMatch[1];
         session.name = nameMatch[1];
     } else if (
         session.conversationState === "BOOKING" &&
         !session.lead.fullName &&
-        messageText.trim().split(/\s+/).length >= 1 &&
+        messageText.trim().split(/\s+/).length > 0 &&
+        messageText.trim().split(/\s+/).length <= 4 && // Limit word count so it doesn't absorb full sentences
         !messageText.includes("@") &&
-        !messageText.includes("+")
+        !messageText.includes("+") &&
+        !lowerMessage.includes("book") // Prevent the trigger phrase from becoming the name
     ) {
         session.lead.fullName = messageText.trim();
         session.name = messageText.trim();
@@ -1566,7 +1578,6 @@ Please choose your appointment time directly below:
     }
 </script>`;
 
-            // This ensures it correctly returns the HTML modal without crashing your server
             session.history.push({ role: "assistant", content: modalHtml });
             await setTenantFile(tenantId, "vault.json", sessionVault);
             return modalHtml;
