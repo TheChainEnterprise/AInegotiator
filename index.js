@@ -1199,9 +1199,49 @@ function parseBookingDateTime(dayName, timeStr) {
     return { startTime, endTime };
 }
 
+// Executes a completed booking: saves it, tries to create the calendar event,
+// and returns exactly what happened. The AI's own reply is NEVER trusted to
+// know whether the booking actually succeeded — only this function decides that.
+async function executeBooking(tenantId, lead, channel) {
+    const bookingRecord = {
+        timestamp: new Date().toISOString(),
+        service: lead.service,
+        date: lead.preferredDate,
+        time: lead.preferredTime,
+        fullName: lead.fullName,
+        phone: lead.phone,
+        email: lead.email,
+        channel,
+        calendarEventCreated: false
+    };
+
+    const parsedTime = parseBookingDateTime(lead.preferredDate, lead.preferredTime);
+
+    if (parsedTime) {
+        try {
+            const calendarResult = await createCalendarEvent(tenantId, {
+                summary: `${lead.service || "Appointment"} - ${lead.fullName}`,
+                description: `Phone: ${lead.phone}\nEmail: ${lead.email}\nBooked via Val (${channel})`,
+                startTime: parsedTime.startTime,
+                endTime: parsedTime.endTime
+            });
+
+            if (calendarResult && !calendarResult.skipped && calendarResult.id) {
+                bookingRecord.calendarEventCreated = true;
+                bookingRecord.calendarEventId = calendarResult.id;
+            }
+        } catch (err) {
+            console.error("Failed to create calendar event:", err);
+        }
+    }
+
+    await appendTenantLog(tenantId, "bookings.json", bookingRecord);
+
+    return bookingRecord;
+}
+
 // Reusable core engine function used by both website chat and WhatsApp
 const processValMessage = async (tenantId, sessionId, messageText, channel = "website") => {
-    await simulateThinking();
 
     let sessionVault = await getTenantFile(tenantId, "vault.json", null);
     if (!sessionVault) sessionVault = INITIAL_VAULT;
@@ -1480,22 +1520,12 @@ if (bookingComplete && !session.lead.saved) {
         ...session.lead
     });
 
-    const parsedTime = parseBookingDateTime(
-        session.lead.preferredDate,
-        session.lead.preferredTime
-    );
+    const bookingResult = await executeBooking(tenantId, session.lead, channel);
 
-    if (parsedTime) {
-        try {
-            await createCalendarEvent(tenantId, {
-                summary: `${session.lead.service || "Appointment"} - ${session.lead.fullName}`,
-                description: `Phone: ${session.lead.phone}\nEmail: ${session.lead.email}\nBooked via Val (${channel})`,
-                startTime: parsedTime.startTime,
-                endTime: parsedTime.endTime
-            });
-        } catch (err) {
-            console.error("Failed to create calendar event:", err);
-        }
+    if (bookingResult.calendarEventCreated) {
+        cleanReply = `Your booking is confirmed for ${session.lead.preferredDate} at ${session.lead.preferredTime}. Anything else I can help with?`;
+    } else {
+        cleanReply = `I've saved your booking request for ${session.lead.preferredDate} at ${session.lead.preferredTime}. Our team will confirm it with you shortly. Is there anything else I can help with?`;
     }
 }
         const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
