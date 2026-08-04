@@ -1252,14 +1252,31 @@ async function executeBooking(tenantId, lead, channel) {
             sendAlert(tenantId, `Calendar Sync Failed for ${lead.fullName}. Error: ${err.message}`);
         }
 
-        // STEP 5: Email Confirmation
+// STEP 5: Email Confirmation
         if (lead.email) {
             try {
                 await emailTransporter.sendMail({
                     from: `"Val from The Chain" <${process.env.SMTP_USER}>`, 
                     to: lead.email,
                     subject: `Booking Confirmed: ${lead.service}`,
-                    text: `Hi ${lead.fullName},\n\nYour booking for ${lead.service} is confirmed for ${lead.preferredDate} at ${lead.preferredTime}.\n\nIf you need to reschedule, please reply to our WhatsApp number.\n\nBest,\nVal`,
+                    html: `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
+                            <h2 style="color: #333; text-align: center;">Appointment Confirmed!</h2>
+                            <p>Hi <strong>${lead.fullName}</strong>,</p>
+                            <p>We are excited to confirm your booking for <strong>${lead.service}</strong>.</p>
+                            <table style="width: 100%; background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                                <tr>
+                                    <td><strong>Date:</strong></td>
+                                    <td>${lead.preferredDate}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Time:</strong></td>
+                                    <td>${lead.preferredTime}</td>
+                                </tr>
+                            </table>
+                            <p style="font-size: 12px; color: #777; text-align: center;">If you need to reschedule, please reach out to us directly via WhatsApp.</p>
+                        </div>
+                    `,
                 });
                 bookingRecord.emailSent = true;
             } catch (err) {
@@ -1292,7 +1309,7 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
     const lowerMessage = messageText.toLowerCase();
 
     // Automatically create a visitor session if it doesn't exist
-if (!sessionVault[sessionId]) {
+    if (!sessionVault[sessionId]) {
         sessionVault[sessionId] = {
             id: sessionId,
             name: "Visitor",
@@ -1319,12 +1336,11 @@ if (!sessionVault[sessionId]) {
         };
     }
 
-const session = sessionVault[sessionId];
+    const session = sessionVault[sessionId];
     session.channel = channel;
     session.lastUpdated = new Date().toISOString();
 
     // Records the user's message + Val's reply into history, then returns the reply.
-    // Used for every early-return path so the dashboard always shows the full conversation.
     const recordAndReturn = async (replyText) => {
         session.history.push({ role: "user", content: messageText });
         session.history.push({ role: "assistant", content: replyText });
@@ -1335,40 +1351,20 @@ const session = sessionVault[sessionId];
     // ====================================
     // HUMAN HANDOFF
     // ====================================
-
     const HUMAN_REQUEST_PATTERNS = [
-        "real person",
-        "human",
-        "representative",
-        "someone",
-        "owner",
-        "call me",
-        "talk to a person",
-        "talk to someone",
-        "speak to someone",
-        "speak to a person",
-        "speak to a human",
-        "agent"
+        "real person", "human", "representative", "someone", "owner", 
+        "call me", "talk to a person", "talk to someone", "speak to someone", 
+        "speak to a person", "speak to a human", "agent"
     ];
 
-    const wantsHuman = HUMAN_REQUEST_PATTERNS.some(pattern =>
-        lowerMessage.includes(pattern)
-    );
+    const wantsHuman = HUMAN_REQUEST_PATTERNS.some(pattern => lowerMessage.includes(pattern));
 
     if (wantsHuman) {
-
         session.status = "Waiting For Human";
         session.intent = "human_handoff";
 
-if (!session.lead) {
-            session.lead = {
-                fullName: "",
-                phone: "",
-                email: "",
-                service: "",
-                preferredDate: "",
-                preferredTime: ""
-            };
+        if (!session.lead) {
+            session.lead = { fullName: "", phone: "", email: "", service: "", preferredDate: "", preferredTime: "" };
         }
 
         if (!session.lead.fullName) {
@@ -1389,175 +1385,198 @@ if (!session.lead) {
 
     if (lowerMessage.includes("book")) {
         session.conversationState = "BOOKING";
-    } else if (
-        lowerMessage.includes("price") ||
-        lowerMessage.includes("cost") ||
-        lowerMessage.includes("how much")
-    ) {
+    } else if (lowerMessage.includes("price") || lowerMessage.includes("cost") || lowerMessage.includes("how much")) {
         session.conversationState = "PRICING";
     } else {
         session.conversationState = "DISCUSSION";
     }
 
     if (!session.lead) {
-        session.lead = {
-            fullName: "",
-            phone: "",
-            email: "",
-            service: "",
-            preferredDate: "",
-            preferredTime: ""
-        };
+        session.lead = { fullName: "", phone: "", email: "", service: "", preferredDate: "", preferredTime: "" };
     }
 
-const emailMatch = messageText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
-if (emailMatch) session.lead.email = emailMatch[0];
+    const emailMatch = messageText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+    if (emailMatch) session.lead.email = emailMatch[0];
 
-const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
-if (phoneMatch) session.lead.phone = phoneMatch[0];
+    const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
+    if (phoneMatch) session.lead.phone = phoneMatch[0];
 
-const nameMatch = messageText.match(/(?:my name is|i am|i'm|it's|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
-
-if (nameMatch) {
-    session.lead.fullName = nameMatch[1];
-    session.name = nameMatch[1]; // Updates the dashboard list view immediately
-} else if (
-    session.conversationState === "BOOKING" &&
-    !session.lead.fullName &&
-    messageText.trim().split(/\s+/).length >= 1 &&
-    !messageText.includes("@") &&
-    !messageText.includes("+")
-) {
-    session.lead.fullName = messageText.trim();
-    session.name = messageText.trim(); // Updates the dashboard list view immediately
-}
-
-const availableServices = await getTenantFile(tenantId, "services.json", []);
-for (const service of availableServices) {
-    const serviceName = service.name.toLowerCase();
-    if (lowerMessage.includes(serviceName)) {
-        session.lead.service = service.name;
-        break;
-    }
-}
-
-const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-for (const day of weekdays) {
-    if (lowerMessage.includes(day)) {
-        session.lead.preferredDate = day;
-        break;
-    }
-}
-
-const timeMatch = messageText.match(/\b([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?\b/i);
-if (timeMatch) session.lead.preferredTime = timeMatch[0];
-
-// ====================================
-// CONTINUE HUMAN HANDOFF
-// ====================================
-
-if (
-    session.intent === "human_handoff" &&
-    !session.handoffNotified
-) {
-
-if (!session.lead.fullName) {
-        return await recordAndReturn("May I have your full name?");
+    const nameMatch = messageText.match(/(?:my name is|i am|i'm|it's|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
+    if (nameMatch) {
+        session.lead.fullName = nameMatch[1];
+        session.name = nameMatch[1];
+    } else if (
+        session.conversationState === "BOOKING" &&
+        !session.lead.fullName &&
+        messageText.trim().split(/\s+/).length >= 1 &&
+        !messageText.includes("@") &&
+        !messageText.includes("+")
+    ) {
+        session.lead.fullName = messageText.trim();
+        session.name = messageText.trim();
     }
 
-    if (!session.lead.phone) {
-        return await recordAndReturn("Thank you. What's the best WhatsApp or phone number to reach you?");
+    const availableServices = await getTenantFile(tenantId, "services.json", []);
+    for (const service of availableServices) {
+        const serviceName = service.name.toLowerCase();
+        if (lowerMessage.includes(serviceName)) {
+            session.lead.service = service.name;
+            break;
+        }
     }
 
-    console.log("🚨 Sending human handoff alert...");
+    const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+    for (const day of weekdays) {
+        if (lowerMessage.includes(day)) {
+            session.lead.preferredDate = day;
+            break;
+        }
+    }
 
-    sendAlert(
-        tenantId,
-`🚨 HUMAN REQUEST
+    const timeMatch = messageText.match(/\b([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?\b/i);
+    if (timeMatch) session.lead.preferredTime = timeMatch[0];
 
-Name: ${session.lead.fullName}
+    // ====================================
+    // CONTINUE HUMAN HANDOFF
+    // ====================================
+    if (session.intent === "human_handoff" && !session.handoffNotified) {
+        if (!session.lead.fullName) {
+            return await recordAndReturn("May I have your full name?");
+        }
+        if (!session.lead.phone) {
+            return await recordAndReturn("Thank you. What's the best WhatsApp or phone number to reach you?");
+        }
 
-Phone: ${session.lead.phone}
+        sendAlert(
+            tenantId,
+            `🚨 HUMAN REQUEST\n\nName: ${session.lead.fullName}\n\nPhone: ${session.lead.phone}\n\nChannel: ${channel}\n\nSession: ${session.id}`
+        );
 
-Channel: ${channel}
+        session.handoffNotified = true;
+        session.status = "Waiting For Human";
+        session.pendingReply = "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+    }
 
-Session: ${session.id}`
-    );
+    if (session.status === "Manual Override") {
+        return null;
+    }
 
-    console.log("✅ Human handoff alert function called.");
-
-    session.handoffNotified = true;
-    session.status = "Waiting For Human";
-
-    session.pendingReply =
-        "Perfect. Thank you. I've notified our team and someone will contact you on WhatsApp as soon as possible.";
-
-    await setTenantFile(tenantId, "vault.json", sessionVault);
-}
-
-// Only stop replying if a real human has taken over.
-if (session.status === "Manual Override") {
-    return null;
-}
-
-if (session.history.length === 0 || session.history[0].role !== "system") {
-    session.history = [{
-        role: "system",
-        content: await buildSystemPrompt(tenantId, messageText)
-    }];
-} else {
-    session.history[0].content = await buildSystemPrompt(tenantId, messageText);
-}
+    if (session.history.length === 0 || session.history[0].role !== "system") {
+        session.history = [{
+            role: "system",
+            content: await buildSystemPrompt(tenantId, messageText)
+        }];
+    } else {
+        session.history[0].content = await buildSystemPrompt(tenantId, messageText);
+    }
     session.history.push({ role: 'user', content: messageText });
 
     try {
-session.nextQuestion = null;
+        session.nextQuestion = null;
 
-if (session.conversationState === "BOOKING") {
+        if (session.conversationState === "BOOKING") {
+            if (!session.lead.fullName) {
+                return await recordAndReturn("Great! Before we book your appointment, may I have your full name?");
+            }
+            if (!session.lead.phone) {
+                return await recordAndReturn("Thank you. What's the best phone number or WhatsApp number to reach you?");
+            }
+            if (!session.lead.email) {
+                return await recordAndReturn("Perfect. Lastly, what's your email address for the booking confirmation?");
+            }
 
-    if (!session.lead.fullName) {
-        return await recordAndReturn("Great! Before we book your appointment, may I have your full name?");
+            // Everything required has now been collected.
+            if (!session.lead.saved) {
+                session.lead.saved = true;
+                await appendTenantLog(tenantId, "leads.json", {
+                    timestamp: new Date().toISOString(),
+                    ...session.lead,
+                    sessionId: session.id
+                });
+                await setTenantFile(tenantId, "vault.json", sessionVault);
+            }
+
+            const modalHtml = `Perfect! I have everything I need.
+
+Please choose your appointment time directly below:
+
+<div id="val-booking-modal" style="background:#fff; border:1px solid #ddd; padding:15px; border-radius:8px; margin-top:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+    <h3 style="margin:0 0 10px 0; font-size:16px;">📅 Book ${session.lead.service || 'Appointment'}</h3>
+    <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">Select Date:</label>
+    <input type="date" id="val-date" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ccc; border-radius:4px;" min="${new Date().toISOString().split('T')[0]}">
+    
+    <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">Select Time Slot:</label>
+    <select id="val-time" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ccc; border-radius:4px;" disabled>
+        <option value="">Choose a date first...</option>
+    </select>
+
+    <button id="val-confirm-btn" onclick="confirmValBooking('${tenantId}', '${session.id}')" style="background:#000; color:#fff; border:none; padding:10px; width:100%; border-radius:4px; font-weight:bold; cursor:pointer;" disabled>Confirm Booking</button>
+</div>
+
+<script>
+    if(!window.valScriptLoaded) {
+        window.valScriptLoaded = true;
+        document.addEventListener('change', async function(e) {
+            if(e.target && e.target.id === 'val-date') {
+                const date = e.target.value;
+                const timeSelect = document.getElementById('val-time');
+                timeSelect.innerHTML = '<option>Loading live slots...</option>';
+                timeSelect.disabled = true;
+                try {
+                    const res = await fetch('/api/calendar/slots/${tenantId}?date=' + date);
+                    const slots = await res.json();
+                    timeSelect.innerHTML = '<option value="">Select a time...</option>';
+                    slots.forEach(slot => {
+                        const opt = document.createElement('option');
+                        opt.value = slot;
+                        opt.textContent = slot;
+                        timeSelect.appendChild(opt);
+                    });
+                    timeSelect.disabled = false;
+                } catch(err) {
+                    timeSelect.innerHTML = '<option>Error loading slots</option>';
+                }
+            }
+            if(e.target && e.target.id === 'val-time') {
+                document.getElementById('val-confirm-btn').disabled = !e.target.value;
+            }
+        });
     }
 
-    if (!session.lead.phone) {
-        return await recordAndReturn("Thank you. What's the best phone number or WhatsApp number to reach you?");
-    }
+    async function confirmValBooking(tId, sId) {
+        const date = document.getElementById('val-date').value;
+        const time = document.getElementById('val-time').value;
+        const btn = document.getElementById('val-confirm-btn');
+        btn.textContent = 'Confirming...';
+        btn.disabled = true;
 
-    if (!session.lead.email) {
-        return await recordAndReturn("Perfect. Lastly, what's your email address for the booking confirmation?");
-    }
-
-    // Everything required has now been collected.
-    // The SERVER decides, not the AI.
-
-    if (!session.lead.saved) {
-
-        session.lead.saved = true;
-
-        await appendTenantLog(tenantId, "leads.json", {
-            timestamp: new Date().toISOString(),
-            ...session.lead,
-            sessionId: session.id
+        const res = await fetch('/book/confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tenantId: tId, sessionId: sId, date: date, time: time })
         });
 
-        await setTenantFile(tenantId, "vault.json", sessionVault);
-
-        const baseUrl =
-            process.env.RENDER_EXTERNAL_URL ||
-            "https://thechain-tech.onrender.com";
-
-        const bookingUrl =
-            `${baseUrl}/book/${tenantId}/${session.id}`;
-
-        return `Perfect! I have everything I need.\n\nPlease choose a suitable date and time using the calendar below:\n\n📅 ${bookingUrl}`;
+        if(res.ok) {
+            document.getElementById('val-booking-modal').innerHTML = '<h3 style="color:green; text-align:center;">✅ Booking Confirmed!</h3><p style="text-align:center; font-size:13px;">Check your email and WhatsApp for details.</p>';
+        } else {
+            btn.textContent = 'Error. Try Again.';
+            btn.disabled = false;
+        }
     }
-}
+</script>`;
 
-const response = await groq.chat.completions.create({
-    model: "llama-3.1-8b-instant",
-    messages: session.history,
-    temperature: 0.5
-});
+            // This ensures it correctly returns the HTML modal without crashing your server
+            session.history.push({ role: "assistant", content: modalHtml });
+            await setTenantFile(tenantId, "vault.json", sessionVault);
+            return modalHtml;
+        }
+
+        const response = await groq.chat.completions.create({
+            model: "llama-3.1-8b-instant",
+            messages: session.history,
+            temperature: 0.5
+        });
 
         let fullReply = response.choices[0].message.content;
         const metaMatch = fullReply.match(/\[\[\s*PROFILE:\s*(.*?)\s*\|\s*OBJECTION:\s*(.*?)\s*\|\s*CONCESSION:\s*(.*?)\s*\]\]/);
@@ -1574,8 +1593,6 @@ const response = await groq.chat.completions.create({
             cleanReply = session.pendingReply;
             session.pendingReply = null;
         }
-
-// STEP 3: The Interceptor checks for the Calendar Link Trigger
 
         const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
         if (sentences && sentences.length > 3) cleanReply = sentences.slice(0, 3).join(" ").trim();
