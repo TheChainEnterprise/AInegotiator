@@ -1,8 +1,8 @@
 // engine/googleCalendar.js
 //
-// Handles Google Calendar OAuth per tenant, and creates calendar events
-// when a booking completes through Val.
-const moment = require('moment');
+// Handles Google Calendar OAuth per tenant, creates calendar events,
+// and calculates real available booking slots from actual busy/free data.
+
 const { google } = require("googleapis");
 const { getTenantFile, setTenantFile } = require("./tenants");
 
@@ -16,7 +16,6 @@ function createOAuthClient() {
     );
 }
 
-// Build the URL to send a client to so they can connect their Google Calendar.
 function getAuthUrl(tenantId) {
     const oauth2Client = createOAuthClient();
     return oauth2Client.generateAuthUrl({
@@ -30,7 +29,6 @@ function getAuthUrl(tenantId) {
     });
 }
 
-// Called when Google redirects back after the client approves access.
 async function handleOAuthCallback(code, tenantId) {
     const oauth2Client = createOAuthClient();
     const { tokens } = await oauth2Client.getToken(code);
@@ -62,7 +60,6 @@ async function isCalendarConnected(tenantId) {
     return !!integrations?.google?.refreshToken;
 }
 
-// Create a calendar event once a booking is complete.
 async function createCalendarEvent(tenantId, { summary, description, startTime, endTime }) {
     const auth = await getAuthorizedClient(tenantId);
 
@@ -90,52 +87,63 @@ async function createCalendarEvent(tenantId, { summary, description, startTime, 
     return res.data;
 }
 
-const getAvailableSlots = async (tenantId, dateStr) => {
-    try {
-        const auth = await getAuthorizedClient(tenantId); 
-        if (!auth) return ["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"]; // Fallback if not connected
+// Returns real available slot start times ("HH:MM", 24hr) for a given tenant
+// and date (YYYY-MM-DD), based on their actual Google Calendar busy periods.
+// Business hours default to 9am-5pm, 30-minute slots, if not specified.
+async function getAvailableSlots(tenantId, dateStr, options = {}) {
+    const auth = await getAuthorizedClient(tenantId);
+    if (!auth) return [];
 
-        const calendar = google.calendar({ version: 'v3', auth });
+    const integrations = await getTenantFile(tenantId, "integrations.json", {});
+    const calendarId = integrations?.google?.calendarId || "primary";
 
-        const timeMin = moment(dateStr).hour(9).minute(0).second(0).toISOString();
-        const timeMax = moment(dateStr).hour(17).minute(0).second(0).toISOString();
+    const openHour = options.openHour ?? 9;
+    const closeHour = options.closeHour ?? 17;
+    const slotMinutes = options.slotMinutes ?? 30;
 
-        const check = await calendar.freebusy.query({
-            requestBody: {
-                timeMin,
-                timeMax,
-                timeZone: 'UTC',
-                items: [{ id: 'primary' }]
-            }
-        });
+    const dayStart = new Date(`${dateStr}T00:00:00`);
+    const dayEnd = new Date(`${dateStr}T23:59:59`);
 
-        const calendarData = check.data.calendars;
-        const busyTimes = calendarData && calendarData.primary && calendarData.primary.busy ? calendarData.primary.busy : [];
+    const calendar = google.calendar({ version: "v3", auth });
 
-        const allSlots = ["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"];
-        const freeSlots = [];
+    const freebusy = await calendar.freebusy.query({
+        requestBody: {
+            timeMin: dayStart.toISOString(),
+            timeMax: dayEnd.toISOString(),
+            items: [{ id: calendarId }]
+        }
+    });
 
-        for (const slotStr of allSlots) {
-            const slotStart = moment(`${dateStr} ${slotStr}`, "YYYY-MM-DD hh:mm A");
-            const slotEnd = moment(slotStart).add(1, 'hour');
+    const busyPeriods = (freebusy.data.calendars[calendarId]?.busy || []).map((b) => ({
+        start: new Date(b.start).getTime(),
+        end: new Date(b.end).getTime()
+    }));
 
-            const isBusy = busyTimes.some(busy => {
-                const bStart = moment(busy.start);
-                const bEnd = moment(busy.end);
-                return slotStart.isBefore(bEnd) && slotEnd.isAfter(bStart);
-            });
+    const slots = [];
+    const cursor = new Date(dayStart);
+    cursor.setHours(openHour, 0, 0, 0);
 
-            if (!isBusy) {
-                freeSlots.push(slotStr);
-            }
+    const closeTime = new Date(dayStart);
+    closeTime.setHours(closeHour, 0, 0, 0);
+
+    while (cursor < closeTime) {
+        const slotStart = cursor.getTime();
+        const slotEnd = slotStart + slotMinutes * 60 * 1000;
+
+        const overlapsBusy = busyPeriods.some((b) => slotStart < b.end && slotEnd > b.start);
+        const isPast = slotStart < Date.now();
+
+        if (!overlapsBusy && !isPast) {
+            const hh = String(cursor.getHours()).padStart(2, "0");
+            const mm = String(cursor.getMinutes()).padStart(2, "0");
+            slots.push(`${hh}:${mm}`);
         }
 
-        return freeSlots.length > 0 ? freeSlots : ["10:00 AM", "01:00 PM", "03:00 PM"];
-    } catch (error) {
-        console.error("FreeBusy API Error:", error.message);
-        return ["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"]; 
+        cursor.setMinutes(cursor.getMinutes() + slotMinutes);
     }
-};
+
+    return slots;
+}
 
 module.exports = {
     getAuthUrl,

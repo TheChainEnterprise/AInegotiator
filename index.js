@@ -279,16 +279,8 @@ const buildSystemPrompt = async (
         ).dynamicRules || []
         : [];
 
-// Fetch live available slots directly from the connected Google Calendar for today
-    let liveSlots = [];
-    try {
-        const todayStr = moment().format("YYYY-MM-DD");
-        liveSlots = await getAvailableSlots(tenantId, todayStr);
-    } catch (err) {
-        console.error("Could not fetch live Google Calendar slots for prompt:", err.message);
-    }
-
     return `
+
 You are Val, the AI representative for ${business.businessName}.
 
 BUSINESS INFORMATION
@@ -329,7 +321,7 @@ ${business.bookingUrl}
 Booking Instructions:
 - When a user wants to book, collect their Full Name, Phone, and Email one by one.
 - Do NOT guess, invent, or list calendar times in the chat.
-- Once contact info is collected, output the calendar link code so they can select a live slot.
+- Do NOT try to generate any links, buttons, or booking widgets yourself. That is handled automatically by the system once you have their name, phone, and email.
 
 FAQs:
 
@@ -1180,124 +1172,66 @@ app.post('/api/override', async (req, res) => {
     }
 });
 
-// Converts a captured weekday name + loose time string (e.g. "monday", "3pm")
-// into real start/end ISO timestamps for the next occurrence of that weekday.
-function parseBookingDateTime(dayName, timeStr) {
-    const weekdays = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
-    const targetDay = weekdays.indexOf((dayName || "").toLowerCase());
-    if (targetDay === -1) return null;
+// Books an EXACT date/time (never a guess) — creates the calendar event and
+// saves the booking record. Used by both the website confirm endpoint and
+// the WhatsApp text-based slot picker below.
+async function finalizeBooking(tenantId, session, date, time) {
+    const startTime = new Date(`${date}T${time}:00`).toISOString();
+    const endTime = new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString();
 
-    const now = new Date();
-    let daysUntil = (targetDay - now.getDay() + 7) % 7;
-    if (daysUntil === 0) daysUntil = 7;
+    let calendarEventCreated = false;
 
-    const targetDate = new Date(now);
-    targetDate.setDate(now.getDate() + daysUntil);
-
-    const match = (timeStr || "").match(/([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?/i);
-    let hour = 10;
-    let minute = 0;
-
-    if (match) {
-        hour = parseInt(match[1], 10);
-        minute = match[2] ? parseInt(match[2], 10) : 0;
-        const meridiem = match[3]?.toLowerCase();
-        if (meridiem === "pm" && hour < 12) hour += 12;
-        if (meridiem === "am" && hour === 12) hour = 0;
+    try {
+        const calendarResult = await createCalendarEvent(tenantId, {
+            summary: `${session.lead?.service || "Appointment"} - ${session.lead?.fullName || "Customer"}`,
+            description: `Phone: ${session.lead?.phone || ""}\nEmail: ${session.lead?.email || ""}\nBooked via Val (${session.channel})`,
+            startTime,
+            endTime
+        });
+        calendarEventCreated = !!(calendarResult && !calendarResult.skipped && calendarResult.id);
+    } catch (err) {
+        console.error("Failed to create calendar event:", err);
     }
 
-    targetDate.setHours(hour, minute, 0, 0);
-
-    const startTime = targetDate.toISOString();
-    const endTime = new Date(targetDate.getTime() + 60 * 60 * 1000).toISOString();
-
-    return { startTime, endTime };
-}
-
-// Executes a completed booking: saves it, creates the calendar event,
-// sends an email confirmation, and sends a WhatsApp confirmation.
-async function executeBooking(tenantId, lead, channel) {
     const bookingRecord = {
         timestamp: new Date().toISOString(),
-        service: lead.service,
-        date: lead.preferredDate,
-        time: lead.preferredTime,
-        fullName: lead.fullName,
-        phone: lead.phone,
-        email: lead.email,
-        channel,
-        calendarEventCreated: false,
-        emailSent: false,
-        whatsappSent: false
+        service: session.lead?.service,
+        date,
+        time,
+        fullName: session.lead?.fullName,
+        phone: session.lead?.phone,
+        email: session.lead?.email,
+        channel: session.channel,
+        calendarEventCreated
     };
 
-    const parsedTime = parseBookingDateTime(lead.preferredDate, lead.preferredTime);
-
-    if (parsedTime) {
-        try {
-            // 1. Google Calendar Integration
-            const calendarResult = await createCalendarEvent(tenantId, {
-                summary: `${lead.service || "Appointment"} - ${lead.fullName}`,
-                description: `Phone: ${lead.phone}\nEmail: ${lead.email}\nBooked via Val (${channel})`,
-                startTime: parsedTime.startTime,
-                endTime: parsedTime.endTime
-            });
-
-            if (calendarResult && !calendarResult.skipped && calendarResult.id) {
-                bookingRecord.calendarEventCreated = true;
-                bookingRecord.calendarEventId = calendarResult.id;
-            }
-        } catch (err) {
-            console.error("Failed to create calendar event:", err);
-            sendAlert(tenantId, `Calendar Sync Failed for ${lead.fullName}. Error: ${err.message}`);
-        }
-
-// STEP 5: Email Confirmation
-        if (lead.email) {
-            try {
-                await emailTransporter.sendMail({
-                    from: `"Val from The Chain" <${process.env.SMTP_USER}>`, 
-                    to: lead.email,
-                    subject: `Booking Confirmed: ${lead.service}`,
-                    html: `
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #eaeaea; border-radius: 10px;">
-                            <h2 style="color: #333; text-align: center;">Appointment Confirmed!</h2>
-                            <p>Hi <strong>${lead.fullName}</strong>,</p>
-                            <p>We are excited to confirm your booking for <strong>${lead.service}</strong>.</p>
-                            <table style="width: 100%; background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                                <tr>
-                                    <td><strong>Date:</strong></td>
-                                    <td>${lead.preferredDate}</td>
-                                </tr>
-                                <tr>
-                                    <td><strong>Time:</strong></td>
-                                    <td>${lead.preferredTime}</td>
-                                </tr>
-                            </table>
-                            <p style="font-size: 12px; color: #777; text-align: center;">If you need to reschedule, please reach out to us directly via WhatsApp.</p>
-                        </div>
-                    `,
-                });
-                bookingRecord.emailSent = true;
-            } catch (err) {
-                console.error("Failed to send confirmation email:", err);
-            }
-        }
-
-        // STEP 6: Separate WhatsApp Confirmation
-        if (lead.phone && channel === 'website') {
-             try {
-                const whatsappMsg = `Hi ${lead.fullName}, this is Val. Just confirming I've locked in your ${lead.service} appointment for ${lead.preferredDate} at ${lead.preferredTime}. See you then!`;
-                await sendWhatsAppMessageForTenant(tenantId, lead.phone, whatsappMsg);
-                bookingRecord.whatsappSent = true;
-             } catch (err) {
-                console.error("Failed to send WhatsApp confirmation:", err);
-             }
-        }
-    }
-
     await appendTenantLog(tenantId, "bookings.json", bookingRecord);
+
     return bookingRecord;
+}
+
+// Finds the next day (up to 7 days out) with at least one real open slot.
+async function findNextAvailableDate(tenantId, daysToCheck = 7) {
+    for (let i = 1; i <= daysToCheck; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() + i);
+        const dateStr = d.toISOString().split("T")[0];
+        const slots = await getAvailableSlots(tenantId, dateStr);
+        if (slots.length > 0) return { date: dateStr, slots };
+    }
+    return null;
+}
+
+// Matches a customer's free-text reply (e.g. "2", "10:00", "the 10am one")
+// against the exact slots we offered them.
+function matchSlotFromMessage(text, slots) {
+    const trimmed = text.trim();
+    const numMatch = trimmed.match(/^(\d+)/);
+    if (numMatch) {
+        const idx = parseInt(numMatch[1], 10) - 1;
+        if (slots[idx]) return slots[idx];
+    }
+    return slots.find((s) => trimmed.includes(s)) || null;
 }
 
 // Reusable core engine function used by both website chat and WhatsApp
@@ -1386,13 +1320,14 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
     // ====================================
     // CONVERSATION STATE LOCK FIX
     // ====================================
-    if (lowerMessage.includes("book")) {
+if (session.conversationState === "BOOKING" || lowerMessage.includes("book")) {
         session.conversationState = "BOOKING";
-    } else if (lowerMessage.includes("price") || lowerMessage.includes("cost") || lowerMessage.includes("how much")) {
+    } else if (
+        lowerMessage.includes("price") ||
+        lowerMessage.includes("cost") ||
+        lowerMessage.includes("how much")
+    ) {
         session.conversationState = "PRICING";
-    } else if (session.conversationState === "BOOKING" && !session.lead?.saved) {
-        // Keep them securely in BOOKING state while we collect their information
-        session.conversationState = "BOOKING"; 
     } else {
         session.conversationState = "DISCUSSION";
     }
@@ -1437,16 +1372,6 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         }
     }
 
-    const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-    for (const day of weekdays) {
-        if (lowerMessage.includes(day)) {
-            session.lead.preferredDate = day;
-            break;
-        }
-    }
-
-    const timeMatch = messageText.match(/\b([01]?\d|2[0-3])(?::([0-5]\d))?\s?(am|pm)?\b/i);
-    if (timeMatch) session.lead.preferredTime = timeMatch[0];
 
     // ====================================
     // CONTINUE HUMAN HANDOFF
@@ -1487,18 +1412,26 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
     try {
         session.nextQuestion = null;
 
-        if (session.conversationState === "BOOKING") {
+if (session.conversationState === "BOOKING") {
             if (!session.lead.fullName) {
-                return await recordAndReturn("Great! Before we book your appointment, may I have your full name?");
+                const askName = "Great! Before we book your appointment, may I have your full name?";
+                session.history.push({ role: "assistant", content: askName });
+                await setTenantFile(tenantId, "vault.json", sessionVault);
+                return askName;
             }
             if (!session.lead.phone) {
-                return await recordAndReturn("Thank you. What's the best phone number or WhatsApp number to reach you?");
+                const askPhone = "Thank you. What's the best phone number or WhatsApp number to reach you?";
+                session.history.push({ role: "assistant", content: askPhone });
+                await setTenantFile(tenantId, "vault.json", sessionVault);
+                return askPhone;
             }
             if (!session.lead.email) {
-                return await recordAndReturn("Perfect. Lastly, what's your email address for the booking confirmation?");
+                const askEmail = "Perfect. Lastly, what's your email address for the booking confirmation?";
+                session.history.push({ role: "assistant", content: askEmail });
+                await setTenantFile(tenantId, "vault.json", sessionVault);
+                return askEmail;
             }
 
-            // Everything required has now been collected.
             if (!session.lead.saved) {
                 session.lead.saved = true;
                 await appendTenantLog(tenantId, "leads.json", {
@@ -1506,81 +1439,14 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
                     ...session.lead,
                     sessionId: session.id
                 });
-                await setTenantFile(tenantId, "vault.json", sessionVault);
             }
 
-            const modalHtml = `Perfect! I have everything I need.
+            const bookingLink = `${process.env.PUBLIC_APP_URL || "https://ainegotiator-8rik.onrender.com"}/book/${tenantId}/${session.id}`;
+            const linkMessage = `Perfect, I have everything I need. Please pick a time that works for you here: ${bookingLink}`;
 
-Please choose your appointment time directly below:
-
-<div id="val-booking-modal" style="background:#fff; border:1px solid #ddd; padding:15px; border-radius:8px; margin-top:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
-    <h3 style="margin:0 0 10px 0; font-size:16px;">📅 Book ${session.lead.service || 'Appointment'}</h3>
-    <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">Select Date:</label>
-    <input type="date" id="val-date" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ccc; border-radius:4px;" min="${new Date().toISOString().split('T')[0]}">
-    
-    <label style="font-size:12px; font-weight:bold; display:block; margin-bottom:5px;">Select Time Slot:</label>
-    <select id="val-time" style="width:100%; padding:8px; margin-bottom:10px; border:1px solid #ccc; border-radius:4px;" disabled>
-        <option value="">Choose a date first...</option>
-    </select>
-
-    <button id="val-confirm-btn" onclick="confirmValBooking('${tenantId}', '${session.id}')" style="background:#000; color:#fff; border:none; padding:10px; width:100%; border-radius:4px; font-weight:bold; cursor:pointer;" disabled>Confirm Booking</button>
-</div>
-
-<script>
-    if(!window.valScriptLoaded) {
-        window.valScriptLoaded = true;
-        document.addEventListener('change', async function(e) {
-            if(e.target && e.target.id === 'val-date') {
-                const date = e.target.value;
-                const timeSelect = document.getElementById('val-time');
-                timeSelect.innerHTML = '<option>Loading live slots...</option>';
-                timeSelect.disabled = true;
-                try {
-                    const res = await fetch('/api/calendar/slots/${tenantId}?date=' + date);
-                    const slots = await res.json();
-                    timeSelect.innerHTML = '<option value="">Select a time...</option>';
-                    slots.forEach(slot => {
-                        const opt = document.createElement('option');
-                        opt.value = slot;
-                        opt.textContent = slot;
-                        timeSelect.appendChild(opt);
-                    });
-                    timeSelect.disabled = false;
-                } catch(err) {
-                    timeSelect.innerHTML = '<option>Error loading slots</option>';
-                }
-            }
-            if(e.target && e.target.id === 'val-time') {
-                document.getElementById('val-confirm-btn').disabled = !e.target.value;
-            }
-        });
-    }
-
-    async function confirmValBooking(tId, sId) {
-        const date = document.getElementById('val-date').value;
-        const time = document.getElementById('val-time').value;
-        const btn = document.getElementById('val-confirm-btn');
-        btn.textContent = 'Confirming...';
-        btn.disabled = true;
-
-        const res = await fetch('/book/confirm', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tenantId: tId, sessionId: sId, date: date, time: time })
-        });
-
-        if(res.ok) {
-            document.getElementById('val-booking-modal').innerHTML = '<h3 style="color:green; text-align:center;">✅ Booking Confirmed!</h3><p style="text-align:center; font-size:13px;">Check your email and WhatsApp for details.</p>';
-        } else {
-            btn.textContent = 'Error. Try Again.';
-            btn.disabled = false;
-        }
-    }
-</script>`;
-
-            session.history.push({ role: "assistant", content: modalHtml });
+            session.history.push({ role: "assistant", content: linkMessage });
             await setTenantFile(tenantId, "vault.json", sessionVault);
-            return modalHtml;
+            return linkMessage;
         }
 
         const response = await groq.chat.completions.create({
@@ -1746,19 +1612,31 @@ app.get('/book/:tenantId/:sessionId', async (req, res) => {
 
 app.post('/book/confirm', async (req, res) => {
     const { tenantId, sessionId, date, time } = req.body;
-    
+
     const sessionVault = await getTenantFile(tenantId, "vault.json", {});
     const session = sessionVault[sessionId];
-    
-    if (session && session.lead) {
-        session.lead.preferredDate = date;
-        session.lead.preferredTime = time;
-        
-        await executeBooking(tenantId, session.lead, session.channel);
-        
-        res.send("<h2>✅ Booking Confirmed!</h2><p>You can close this window. We've sent a confirmation to your email and WhatsApp.</p>");
-    } else {
-        res.status(400).send("Session expired.");
+
+    if (!session || !session.lead) {
+        return res.status(400).send("Session expired.");
+    }
+
+    try {
+        await finalizeBooking(tenantId, session, date, time);
+
+        const confirmationText = `Your booking is confirmed for ${date} at ${time}. We look forward to seeing you!`;
+        session.history.push({ role: "assistant", content: confirmationText });
+        session.status = "Booked";
+        session.lastUpdated = new Date().toISOString();
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+
+        if ((session.channel || "website") === "whatsapp") {
+            await sendWhatsAppMessageForTenant(tenantId, session.id, confirmationText);
+        }
+
+        res.send("<h2>✅ Booking Confirmed!</h2><p>You can close this window and return to your chat.</p>");
+    } catch (err) {
+        console.error("Booking confirmation failed:", err);
+        res.status(500).send("Something went wrong confirming your booking. Please try again.");
     }
 });
 
