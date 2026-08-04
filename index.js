@@ -678,7 +678,6 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
             session.offeredSlots = null;
             session.status = "Booked";
             session.conversationState = "DISCUSSION";
-            // 3. FIXED: Purged any leftover isBookingFlow flag just in case
             delete session.isBookingFlow;
             await setTenantFile(tenantId, "vault.json", sessionVault);
             return `✅ Your booking is confirmed for ${session.lead.preferredDate} at ${session.lead.preferredTime}! We have sent a confirmation to your email.`;
@@ -774,11 +773,15 @@ app.post('/book/confirm', async (req, res) => {
         return res.status(400).json({ success: false, error: "Session expired." });
     }
 
+    // 3. FIXED: Duplicate booking protection
+    if (session.status === "Booked") {
+        return res.json({ success: true, message: "Already booked." });
+    }
+
     try {
         await finalizeBooking(tenantId, session, date, time);
         session.status = "Booked";
         session.conversationState = "DISCUSSION";
-        // 3. FIXED: Purged any leftover isBookingFlow flag just in case
         delete session.isBookingFlow;
         session.lastUpdated = new Date().toISOString();
         
