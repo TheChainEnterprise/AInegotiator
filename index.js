@@ -164,18 +164,53 @@ app.get("/api/bookings", async (req, res) => {
 app.get('/api/clients', async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || 'default';
     let sessionVault = await getTenantFile(tenantId, "vault.json", null);
-    if (!sessionVault) {
+    
+    if (!sessionVault || Object.keys(sessionVault).length === 0) {
         sessionVault = INITIAL_VAULT;
         await setTenantFile(tenantId, "vault.json", sessionVault);
     }
-    res.json(Object.values(sessionVault).map(c => ({ id: c.id, name: c.name, label: c.label, price: c.price, status: c.status, analysis: c.analysis })));
+    
+    const clientList = Object.values(sessionVault).map(c => ({
+        id: c.id || c.sessionId || "client-id",
+        name: c.name || c.lead?.fullName || "Valued Client",
+        label: c.label || "Active Client",
+        price: c.price || 1000,
+        status: c.status || "Active",
+        analysis: c.analysis || { buyerProfile: "Standard", objectionType: "None", concessionStep: "Stable" }
+    }));
+
+    res.json(clientList);
+});
+
+app.get("/api/admin/conversations", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const channel = req.query.channel || "website";
+
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+
+    const list = Object.values(sessionVault)
+        .filter(s => (s.channel || "website") === channel)
+        .map(s => {
+            const lastMsg = (s.history || []).filter(h => h.role !== "system").slice(-1)[0];
+            return {
+                sessionId: s.id,
+                name: s.lead?.fullName || s.name || s.id,
+                phone: s.lead?.phone || (channel === "whatsapp" ? s.id : ""),
+                status: s.status,
+                lastMessage: lastMsg?.content || "",
+                lastRole: lastMsg?.role || "",
+                lastUpdated: s.lastUpdated || "",
+                startedAt: s.startedAt || ""
+            };
+        });
+
+    res.json(list);
 });
 
 // RESTORED UNIFIED INBOX & CONVERSATIONS API
 app.get("/api/admin/conversations", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
     const channel = req.query.channel || "website";
-
     const sessionVault = await getTenantFile(tenantId, "vault.json", {});
 
     const list = Object.values(sessionVault)
