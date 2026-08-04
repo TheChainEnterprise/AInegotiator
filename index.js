@@ -593,9 +593,14 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
             }
         }
 
-        const response = await groq.chat.completions.create({ model: "llama-3.1-8b-instant", messages: session.history, temperature: 0.5 });
+const response = await groq.chat.completions.create({ model: "llama-3.1-8b-instant", messages: session.history, temperature: 0.5 });
         let fullReply = response.choices[0].message.content;
-        let cleanReply = fullReply.replace(/\[\[.*?\]\]/g, "").trim();
+        
+        // Properly sanitize any modal tags or internal markers so they never show up in chat text
+        let cleanReply = fullReply.replace(/\[\[OPEN_BOOKING_MODAL:.*?\]\]/g, "").replace(/\[\[.*?\]\]/g, "").trim();
+        if (!cleanReply) {
+            cleanReply = "Perfect! Please select your slot below.";
+        }
 
         session.history.push({ role: "assistant", content: cleanReply });
         session.history = [session.history[0], ...session.history.slice(-6)];
