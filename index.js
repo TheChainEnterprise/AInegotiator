@@ -312,7 +312,7 @@ async function finalizeBooking(tenantId, session, date, time) {
     return bookingRecord;
 }
 
-// NATURAL DYNAMIC CONVERSATION ENGINE (WITH FULL VAULT & CONVERSATION SAVING)
+// NATURAL DYNAMIC CONVERSATION ENGINE (RESTORED NATURAL RECEPTIONIST BEHAVIOR)
 const processValMessage = async (tenantId, sessionId, messageText, channel = "website") => {
     let sessionVault = await getTenantFile(tenantId, "vault.json", null);
     if (!sessionVault) sessionVault = INITIAL_VAULT;
@@ -333,23 +333,26 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
 
     if (!session.lead) session.lead = { fullName: "", phone: "", email: "", service: "", preferredDate: "", preferredTime: "" };
 
-    // Extract details naturally from any message
+    const lowerMessage = messageText.toLowerCase();
+
+    // Natural data extraction
     const emailMatch = messageText.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
     if (emailMatch) session.lead.email = emailMatch[0];
 
     const phoneMatch = messageText.match(/\+?[0-9][0-9\s\-]{7,}/);
     if (phoneMatch) session.lead.phone = phoneMatch[0];
 
+    // Contextual name extraction if missing
     const nameMatch = messageText.match(/(?:my name is|i am|i'm|it's|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)/i);
     if (nameMatch) {
         session.lead.fullName = nameMatch[1];
         session.name = nameMatch[1];
-    } else if (!session.lead.fullName && session.history.length === 2 && messageText.trim().split(/\s+/).length <= 3 && !messageText.includes("@")) {
+    } else if (!session.lead.fullName && session.history.length > 0 && messageText.trim().split(/\s+/).length <= 3 && !messageText.includes("@") && !phoneMatch) {
         session.lead.fullName = messageText.trim();
         session.name = messageText.trim();
     }
 
-    // WhatsApp Direct Slot Selection Parser (Supports natural time replies)
+    // WhatsApp Direct Slot Selection Parser
     if (channel === "whatsapp" && session.waitingForSlotSelection && session.offeredSlots) {
         const trimmed = messageText.trim();
         let chosenSlot = null;
@@ -381,27 +384,45 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
     session.history.push({ role: 'user', content: messageText });
 
     try {
-        const response = await groq.chat.completions.create({ model: "llama-3.1-8b-instant", messages: session.history, temperature: 0.6 });
+        const response = await groq.chat.completions.create({ model: "llama-3.1-8b-instant", messages: session.history, temperature: 0.5 });
         let fullReply = response.choices[0].message.content;
-
-        const hasAllInfo = session.lead.fullName && session.lead.phone && session.lead.email;
-        
-        if (channel === "whatsapp" && (fullReply.includes("book") || hasAllInfo) && !session.lead.preferredDate) {
-            session.lead.preferredDate = moment().add(1, 'days').format("YYYY-MM-DD");
-            const slots = await getAvailableSlots(tenantId, session.lead.preferredDate);
-            session.offeredSlots = slots.length > 0 ? slots : ["10:00", "11:00", "13:00", "14:00", "15:00"];
-            session.waitingForSlotSelection = true;
-            
-            const slotList = session.offeredSlots.map((s, i) => `${i + 1}. ${s}`).join("\n");
-            fullReply = `Great! Here are the available times for ${session.lead.preferredDate}:\n\n${slotList}\n\nPlease reply with the number or time you prefer.`;
-        }
 
         let cleanReply = fullReply.replace(/\[\[.*?\]\]/g, "").trim();
 
-        if (channel === "website" && hasAllInfo && (fullReply.toLowerCase().includes("book") || messageText.toLowerCase().includes("book") || session.lead.savedBookingTrigger)) {
-            session.lead.savedBookingTrigger = true;
-            cleanReply = `Perfect, I have all your details! Please select your appointment time from the calendar popup below.`;
-            cleanReply += `\n\n[[OPEN_BOOKING_MODAL:${tenantId}:${sessionId}]]`;
+        // Check what info is still missing to ensure natural conversational flow
+        const hasName = !!session.lead.fullName;
+        const hasPhone = !!session.lead.phone;
+        const hasEmail = !!session.lead.email;
+
+        // If user wants to book or talk about booking, guide them naturally step-by-step
+        if (lowerMessage.includes("book") || lowerMessage.includes("appointment") || session.isBookingFlow) {
+            session.isBookingFlow = true;
+
+            if (!hasName) {
+                cleanReply = "I'd love to help you book an appointment! May I please have your full name?";
+            } else if (!hasPhone) {
+                cleanReply = `Thanks, ${session.lead.fullName}. What is the best phone number to reach you?`;
+            } else if (!hasEmail) {
+                cleanReply = "Got it. Lastly, what is your email address so we can send you the calendar confirmation?";
+            }
+        }
+
+        // Once ALL info is gathered, trigger website modal or WhatsApp slot picker
+        const hasAllInfo = hasName && hasPhone && hasEmail;
+
+        if (hasAllInfo) {
+            if (channel === "whatsapp" && !session.lead.preferredDate) {
+                session.lead.preferredDate = moment().add(1, 'days').format("YYYY-MM-DD");
+                const slots = await getAvailableSlots(tenantId, session.lead.preferredDate);
+                session.offeredSlots = slots.length > 0 ? slots : ["10:00", "11:00", "13:00", "14:00", "15:00"];
+                session.waitingForSlotSelection = true;
+                
+                const slotList = session.offeredSlots.map((s, i) => `${i + 1}. ${s}`).join("\n");
+                cleanReply = `Thank you so much! Here are the available times for ${session.lead.preferredDate}:\n\n${slotList}\n\nPlease reply with the number or time you prefer.`;
+            } else if (channel === "website") {
+                cleanReply = `Thank you, ${session.lead.fullName}! I have all your details. Please pick your preferred date and time from the schedule selector below.`;
+                cleanReply += `\n\n[[OPEN_BOOKING_MODAL:${tenantId}:${sessionId}]]`;
+            }
         }
 
         session.history.push({ role: "assistant", content: cleanReply });
