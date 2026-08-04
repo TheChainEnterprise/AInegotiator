@@ -9,14 +9,31 @@ const path = require("path");
 const nodemailer = require('nodemailer');
 const moment = require('moment');
 
-// Set up the email transporter with family: 4 to resolve ENETUNREACH on Render
+// Email transporter
 const emailTransporter = nodemailer.createTransport({
-    service: 'gmail', // Reverted back to the reliable 'service' string
-    family: 4,        // Forces IPv4 on Render to prevent network drops
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    family: 4,
+
     auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
     },
+
+    connectionTimeout: 30000,
+    greetingTimeout: 30000,
+    socketTimeout: 30000,
+});
+
+emailTransporter.verify((err, success) => {
+    if (err) {
+        console.error("❌ SMTP VERIFY FAILED");
+        console.error(err);
+    } else {
+        console.log("✅ SMTP READY");
+    }
 });
 
 const { connectDB } = require("./engine/db");
