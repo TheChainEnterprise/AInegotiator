@@ -279,8 +279,14 @@ const buildSystemPrompt = async (
         ).dynamicRules || []
         : [];
 
-    // CHANGED: getAvailability is now async
-    const availability = await getAvailability(tenantId);
+// Fetch live available slots directly from the connected Google Calendar for today
+    let liveSlots = [];
+    try {
+        const todayStr = moment().format("YYYY-MM-DD");
+        liveSlots = await getAvailableSlots(tenantId, todayStr);
+    } catch (err) {
+        console.error("Could not fetch live Google Calendar slots for prompt:", err.message);
+    }
 
     return `
 You are Val, the AI representative for ${business.businessName}.
@@ -320,11 +326,13 @@ ${service.monthly ? `Monthly: $${service.monthly}` : ""}
 Booking:
 ${business.bookingUrl}
 
-Available Booking Slots:
+Live Available Slots from Google Calendar (Today):
+${liveSlots.length > 0 ? liveSlots.join(", ") : "No open slots found for today."}
 
-${availability.length
-    ? availability.join("\n")
-    : "No availability has been loaded yet."}
+Booking Instructions for Val:
+- You have direct access to the live Google Calendar slots above.
+- If the user asks for availability, list these exact open slots.
+- If the user chooses a time, collect their Full Name, Phone, and Email, then execute the booking.
 
 FAQs:
 
@@ -1508,16 +1516,19 @@ if (session.history.length === 0 || session.history[0].role !== "system") {
     try {
         session.nextQuestion = null;
 if (session.conversationState === "BOOKING") {
-            if (!session.lead.fullName) session.nextQuestion = "fullName";
+            if (!session.lead.service) session.nextQuestion = "service";
+            else if (!session.lead.fullName) session.nextQuestion = "fullName";
             else if (!session.lead.phone) session.nextQuestion = "phone";
             else if (!session.lead.email) session.nextQuestion = "email";
+            else if (!session.lead.preferredDate) session.nextQuestion = "preferredDate";
+            else if (!session.lead.preferredTime) session.nextQuestion = "preferredTime";
             else session.nextQuestion = "complete";
         }
 
-let bookingInstruction = `Current conversation state: BOOKING\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nRules for Booking:\n- Ask for ONE missing field at a time.\n- Do NOT invent or ask about services if the user just wants a demo.\n- Do NOT greet or introduce yourself.\n- If all fields are collected, output ONLY: [SEND_CALENDAR_LINK]`;
+let bookingInstruction = `Current conversation state: BOOKING\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nDate: ${session.lead.preferredDate || "missing"}\nTime: ${session.lead.preferredTime || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nRules for Booking:\n- Ask for ONE missing field at a time (Name -> Phone -> Email -> Date -> Time).\n- If all required info including Date and Time is collected, output ONLY: [EXECUTE_BOOKING]`;
 
         if (session.nextQuestion === "complete") {
-            bookingInstruction = `All required booking information has been collected. You are strictly forbidden from asking any more questions or mentioning availability. You MUST reply with EXACTLY this code and nothing else: [SEND_CALENDAR_LINK]`;
+            bookingInstruction = `All required booking information has been collected. You are strictly forbidden from confirming the appointment yourself. You MUST reply with EXACTLY this word and nothing else: [EXECUTE_BOOKING]`;
         }
 
         const bookingSystemMessage = {
@@ -1548,23 +1559,28 @@ let bookingInstruction = `Current conversation state: BOOKING\nFull Name: ${sess
             session.pendingReply = null;
         }
 
-        // STEP 3: The Interceptor checks for the Calendar Link Trigger
-        const isReadyForCalendar = fullReply.includes("[SEND_CALENDAR_LINK]");
+// STEP 3: The Interceptor checks if Val fired the booking safe word
+        const isReadyToExecute = fullReply.includes("[EXECUTE_BOOKING]");
 
-        if (isReadyForCalendar && !session.lead.saved) {
+        if (isReadyToExecute && !session.lead.saved) {
             session.lead.saved = true;
 
             await appendTenantLog(tenantId, "leads.json", {
                 timestamp: new Date().toISOString(),
                 ...session.lead,
-                sessionId: session.id 
+                sessionId: session.id
             });
 
-const baseUrl = process.env.RENDER_EXTERNAL_URL || `https://thechain-tech.onrender.com`; // Fallback to your live render URL
-            const bookingUrl = `${baseUrl}/book/${tenantId}/${session.id}`;
+            // Run the booking executor (writes to Google Calendar, sends Email & WhatsApp)
+            const bookingResult = await executeBooking(tenantId, session.lead, channel);
 
-            cleanReply = `Perfect! I have all your details. Please click the link below to pick your live appointment time on our calendar:\n\n📅 ${bookingUrl}`;
+            if (bookingResult.calendarEventCreated) {
+                cleanReply = `✅ Your appointment for ${session.lead.preferredDate} at ${session.lead.preferredTime} is officially confirmed! I've added it to our Google Calendar and sent a confirmation to your email.`;
+            } else {
+                cleanReply = `⏳ I've recorded your booking request for ${session.lead.preferredDate} at ${session.lead.preferredTime}. Our team will review and confirm shortly!`;
+            }
         }
+
         const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
         if (sentences && sentences.length > 3) cleanReply = sentences.slice(0, 3).join(" ").trim();
 
