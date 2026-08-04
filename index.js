@@ -1511,31 +1511,53 @@ if (session.history.length === 0 || session.history[0].role !== "system") {
     session.history.push({ role: 'user', content: messageText });
 
     try {
-        session.nextQuestion = null;
+session.nextQuestion = null;
+
 if (session.conversationState === "BOOKING") {
-            if (!session.lead.fullName) session.nextQuestion = "fullName";
-            else if (!session.lead.phone) session.nextQuestion = "phone";
-            else if (!session.lead.email) session.nextQuestion = "email";
-            else session.nextQuestion = "complete";
-        }
 
-let bookingInstruction = `Current conversation state: BOOKING\nFull Name: ${session.lead.fullName || "missing"}\nPhone: ${session.lead.phone || "missing"}\nEmail: ${session.lead.email || "missing"}\nNext required field: ${session.nextQuestion || "none"}\n\nRules for Booking:\n- Ask for ONE missing field at a time: Full Name -> Phone -> Email.\n- Do NOT talk about calendar availability in the chat.\n- If all required info is collected, output ONLY: [SEND_CALENDAR_LINK]`;
+    if (!session.lead.fullName) {
+        return await recordAndReturn("Great! Before we book your appointment, may I have your full name?");
+    }
 
-        if (session.nextQuestion === "complete") {
-            bookingInstruction = `All required booking information has been collected. You are strictly forbidden from asking any more questions. You MUST reply with EXACTLY this code and nothing else: [SEND_CALENDAR_LINK]`;
-        }
+    if (!session.lead.phone) {
+        return await recordAndReturn("Thank you. What's the best phone number or WhatsApp number to reach you?");
+    }
 
-        const bookingSystemMessage = {
-            role: "system",
-            content: bookingInstruction
-        };
-        const messagesForGroq = session.conversationState === "BOOKING" ? [...session.history, bookingSystemMessage] : session.history;
+    if (!session.lead.email) {
+        return await recordAndReturn("Perfect. Lastly, what's your email address for the booking confirmation?");
+    }
 
-        const response = await groq.chat.completions.create({
-            model: "llama-3.1-8b-instant",
-            messages: messagesForGroq,
-            temperature: 0.5
+    // Everything required has now been collected.
+    // The SERVER decides, not the AI.
+
+    if (!session.lead.saved) {
+
+        session.lead.saved = true;
+
+        await appendTenantLog(tenantId, "leads.json", {
+            timestamp: new Date().toISOString(),
+            ...session.lead,
+            sessionId: session.id
         });
+
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+
+        const baseUrl =
+            process.env.RENDER_EXTERNAL_URL ||
+            "https://thechain-tech.onrender.com";
+
+        const bookingUrl =
+            `${baseUrl}/book/${tenantId}/${session.id}`;
+
+        return `Perfect! I have everything I need.\n\nPlease choose a suitable date and time using the calendar below:\n\n📅 ${bookingUrl}`;
+    }
+}
+
+const response = await groq.chat.completions.create({
+    model: "llama-3.1-8b-instant",
+    messages: session.history,
+    temperature: 0.5
+});
 
         let fullReply = response.choices[0].message.content;
         const metaMatch = fullReply.match(/\[\[\s*PROFILE:\s*(.*?)\s*\|\s*OBJECTION:\s*(.*?)\s*\|\s*CONCESSION:\s*(.*?)\s*\]\]/);
@@ -1554,22 +1576,6 @@ let bookingInstruction = `Current conversation state: BOOKING\nFull Name: ${sess
         }
 
 // STEP 3: The Interceptor checks for the Calendar Link Trigger
-        const isReadyForCalendar = fullReply.includes("[SEND_CALENDAR_LINK]");
-
-        if (isReadyForCalendar && !session.lead.saved) {
-            session.lead.saved = true;
-
-            await appendTenantLog(tenantId, "leads.json", {
-                timestamp: new Date().toISOString(),
-                ...session.lead,
-                sessionId: session.id 
-            });
-
-            const baseUrl = process.env.RENDER_EXTERNAL_URL || `https://thechain-tech.onrender.com`;
-            const bookingUrl = `${baseUrl}/book/${tenantId}/${session.id}`;
-
-            cleanReply = `Perfect! I have all your details. Please click the link below to select any date and time live from our Google Calendar:\n\n📅 ${bookingUrl}`;
-        }
 
         const sentences = cleanReply.match(/[^.!?]+[.!?]+/g);
         if (sentences && sentences.length > 3) cleanReply = sentences.slice(0, 3).join(" ").trim();
