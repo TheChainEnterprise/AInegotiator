@@ -9,29 +9,10 @@ const path = require("path");
 const nodemailer = require('nodemailer');
 const moment = require('moment');
 
-// Email transporter
-const emailTransporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    family: 4,
-    auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-    },
-    connectionTimeout: 30000,
-    greetingTimeout: 30000,
-    socketTimeout: 30000,
-});
-
-emailTransporter.verify((err, success) => {
-    if (err) {
-        console.error("❌ SMTP VERIFY FAILED");
-        console.error(err);
-    } else {
-        console.log("✅ SMTP READY");
-    }
-});
+// Email sending via Resend (HTTP API, avoids Render's unreliable outbound SMTP)
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
+console.log("✅ RESEND CONFIGURED");
 
 const { connectDB } = require("./engine/db");
 
@@ -607,8 +588,8 @@ async function sendBookingNotifications(tenantId, session, bookingRecord) {
 
     if (clientEmail) {
         try {
-            const info = await emailTransporter.sendMail({
-                from: `"The Chain" <${process.env.SMTP_USER}>`,
+const info = await resend.emails.send({
+                from: `The Chain <notifications@thechain.tech>`,
                 to: clientEmail,
                 subject: `Booking Confirmed: ${bookingRecord.service}`,
                 html: `
