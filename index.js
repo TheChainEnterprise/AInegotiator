@@ -188,23 +188,19 @@ app.get("/api/bookings", async (req, res) => {
 
 app.post("/api/bookings", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const booking = { id: Date.now(), ...req.body };
+    const booking = { ...req.body };
     await appendTenantLog(tenantId, "bookings.json", booking);
     res.json({ success: true, booking });
 });
-
 app.delete("/api/bookings/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const targetId = Number(req.params.id);
-    await deleteTenantLogEntry(tenantId, "bookings.json", targetId);
+    await deleteTenantLogEntry(tenantId, "bookings.json", req.params.id);
     res.json({ success: true });
 });
-
 app.put("/api/bookings/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const targetId = Number(req.params.id);
     const { id, ...updates } = req.body;
-    const updated = await updateTenantLogEntry(tenantId, "bookings.json", targetId, updates);
+    const updated = await updateTenantLogEntry(tenantId, "bookings.json", req.params.id, updates);
     if (!updated) return res.status(404).json({ error: "Booking not found." });
     res.json({ success: true, booking: updated });
 });
