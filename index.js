@@ -615,7 +615,11 @@ const info = await resend.emails.send({
                     </div>
                 `
             });
-            console.log(`[EMAIL SUCCESS] Client confirmation sent successfully! Message ID: ${info.messageId}`);
+if (info.error) {
+                console.error("[EMAIL FAILED] Client confirmation:", info.error);
+            } else {
+                console.log(`[EMAIL SUCCESS] Client confirmation sent successfully! Message ID: ${info.data?.id}`);
+            }
         } catch (mailErr) {
             console.error("[CRITICAL CLIENT EMAIL ERROR]:", mailErr.message);
         }
@@ -646,7 +650,11 @@ const info = await resend.emails.send({
                     </div>
                 `
             });
-            console.log(`[EMAIL SUCCESS] Admin alert sent successfully! Message ID: ${info.messageId}`);
+if (info.error) {
+                console.error("[EMAIL FAILED] Admin alert:", info.error);
+            } else {
+                console.log(`[EMAIL SUCCESS] Admin alert sent successfully! Message ID: ${info.data?.id}`);
+            }
         }
     } catch (alertErr) {
         console.error("[CRITICAL ADMIN ALERT EMAIL ERROR]:", alertErr.message);
