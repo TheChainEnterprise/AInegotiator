@@ -589,7 +589,7 @@ async function sendBookingNotifications(tenantId, session, bookingRecord) {
     if (clientEmail) {
         try {
 const info = await resend.emails.send({
-                from: `The Chain <notifications@thechain.tech>`,
+                from: `The Chain <info@thechain.tech>`,
                 to: clientEmail,
                 subject: `Booking Confirmed: ${bookingRecord.service}`,
                 html: `
@@ -619,8 +619,8 @@ const info = await resend.emails.send({
         console.log(`[EMAIL DISPATCH] Attempting to send Admin Alert to: ${alertEmail}`);
 
         if (alertEmail) {
-            const info = await emailTransporter.sendMail({
-                from: `"The Chain System" <${process.env.SMTP_USER}>`,
+const info = await resend.emails.send({
+                from: `The Chain System <info@thechain.tech>`,
                 to: alertEmail,
                 subject: `New Booking Alert: ${bookingRecord.service} - ${bookingRecord.fullName}`,
                 html: `
