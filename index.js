@@ -802,22 +802,29 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
             }
         }
 
-        const hasAllInfo = hasName && hasPhone && hasEmail;
+const hasAllInfo = hasName && hasPhone && hasEmail;
 
-        if (hasAllInfo) {
-            if (channel === "whatsapp" && !session.lead.preferredDate) {
-                session.lead.preferredDate = moment().add(1, 'days').format("YYYY-MM-DD");
-                const slots = await getAvailableSlots(tenantId, session.lead.preferredDate);
-                session.offeredSlots = slots.length > 0 ? slots : ["10:00", "11:00", "13:00", "14:00", "15:00"];
-                session.waitingForSlotSelection = true;
-                
-                const slotList = session.offeredSlots.map((s, i) => `${i + 1}. ${s}`).join("\n");
-                cleanReply = `Thank you so much! Here are the available times for ${session.lead.preferredDate}:\n\n${slotList}\n\nPlease reply with the number or time you prefer.`;
-            } else if (channel === "website") {
-                cleanReply = `Thank you, ${session.lead.fullName}! I have all your details. Please pick your preferred date and time from the schedule selector below.`;
-                cleanReply += `\n\n[[OPEN_BOOKING_MODAL:${tenantId}:${sessionId}]]`;
-            }
-        }
+if (
+    hasAllInfo &&
+    session.conversationState === "BOOKING" &&
+    session.status !== "Booked"
+) {
+    if (channel === "whatsapp" && !session.lead.preferredDate) {
+        session.lead.preferredDate = moment().add(1, 'days').format("YYYY-MM-DD");
+        const slots = await getAvailableSlots(tenantId, session.lead.preferredDate);
+        session.offeredSlots = slots.length > 0 ? slots : ["10:00", "11:00", "13:00", "14:00", "15:00"];
+        session.waitingForSlotSelection = true;
+
+        const slotList = session.offeredSlots.map((s, i) => `${i + 1}. ${s}`).join("\n");
+        cleanReply = `Thank you so much! Here are the available times for ${session.lead.preferredDate}:\n\n${slotList}\n\nPlease reply with the number or time you prefer.`;
+
+    } else if (channel === "website") {
+
+        cleanReply = `Thank you, ${session.lead.fullName}! I have all your details. Please pick your preferred date and time from the schedule selector below.`;
+        cleanReply += `\n\n[[OPEN_BOOKING_MODAL:${tenantId}:${sessionId}]]`;
+
+    }
+}
 
         session.history.push({ role: "assistant", content: cleanReply });
         session.history = [session.history[0], ...session.history.slice(-12)];
