@@ -596,6 +596,15 @@ async function finalizeBooking(tenantId, session, date, time) {
 
     await appendTenantLog(tenantId, "bookings.json", bookingRecord);
 
+    // Fire-and-forget: emails + Telegram no longer block the customer's response
+    sendBookingNotifications(tenantId, session, bookingRecord).catch(err => {
+        console.error("[BOOKING NOTIFICATIONS ERROR]:", err);
+    });
+
+    return bookingRecord;
+}
+
+async function sendBookingNotifications(tenantId, session, bookingRecord) {
     const clientEmail = session.lead?.email;
     console.log(`[EMAIL DISPATCH] Attempting to send Client Confirmation to: ${clientEmail || "NONE FOUND"}`);
 
@@ -611,8 +620,8 @@ async function finalizeBooking(tenantId, session, date, time) {
                         <p style="font-size: 16px; color: #333;">Hi <strong>${bookingRecord.fullName}</strong>,</p>
                         <p style="font-size: 15px; color: #555; line-height: 1.5;">Your appointment has been successfully booked and added to our calendar.</p>
                         <table style="width: 100%; background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border-collapse: collapse;">
-                            <tr><td style="padding: 8px 0; color: #666;"><strong>Date:</strong></td><td style="padding: 8px 0; text-align: right; color: #111;">${date}</td></tr>
-                            <tr><td style="padding: 8px 0; color: #666;"><strong>Time:</strong></td><td style="padding: 8px 0; text-align: right; color: #111;">${time}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666;"><strong>Date:</strong></td><td style="padding: 8px 0; text-align: right; color: #111;">${bookingRecord.date}</td></tr>
+                            <tr><td style="padding: 8px 0; color: #666;"><strong>Time:</strong></td><td style="padding: 8px 0; text-align: right; color: #111;">${bookingRecord.time}</td></tr>
                         </table>
                         <p style="font-size: 13px; color: #777; text-align: center;">We look forward to seeing you!</p>
                     </div>
@@ -621,7 +630,6 @@ async function finalizeBooking(tenantId, session, date, time) {
             console.log(`[EMAIL SUCCESS] Client confirmation sent successfully! Message ID: ${info.messageId}`);
         } catch (mailErr) {
             console.error("[CRITICAL CLIENT EMAIL ERROR]:", mailErr.message);
-            console.error(mailErr);
         }
     } else {
         console.warn("[EMAIL WARNING] Skipped sending client email because session.lead.email was empty.");
@@ -630,9 +638,8 @@ async function finalizeBooking(tenantId, session, date, time) {
     try {
         const business = await getTenantFile(tenantId, "business.json", null);
         const alertEmail = business?.email || process.env.SMTP_USER;
-        
         console.log(`[EMAIL DISPATCH] Attempting to send Admin Alert to: ${alertEmail}`);
-        
+
         if (alertEmail) {
             const info = await emailTransporter.sendMail({
                 from: `"The Chain System" <${process.env.SMTP_USER}>`,
@@ -643,8 +650,8 @@ async function finalizeBooking(tenantId, session, date, time) {
                         <h2>New Appointment Booked</h2>
                         <p><strong>Client:</strong> ${bookingRecord.fullName}</p>
                         <p><strong>Service:</strong> ${bookingRecord.service}</p>
-                        <p><strong>Date:</strong> ${date}</p>
-                        <p><strong>Time:</strong> ${time}</p>
+                        <p><strong>Date:</strong> ${bookingRecord.date}</p>
+                        <p><strong>Time:</strong> ${bookingRecord.time}</p>
                         <p><strong>Phone:</strong> ${bookingRecord.phone}</p>
                         <p><strong>Email:</strong> ${bookingRecord.email}</p>
                         <p><strong>Channel:</strong> ${bookingRecord.channel}</p>
@@ -657,7 +664,14 @@ async function finalizeBooking(tenantId, session, date, time) {
         console.error("[CRITICAL ADMIN ALERT EMAIL ERROR]:", alertErr.message);
     }
 
-    return bookingRecord;
+    try {
+        sendAlert(
+            tenantId,
+            `New booking: ${bookingRecord.fullName} — ${bookingRecord.service}\n${bookingRecord.date} at ${bookingRecord.time}\nPhone: ${bookingRecord.phone}\nEmail: ${bookingRecord.email}`
+        );
+    } catch (telegramErr) {
+        console.error("[TELEGRAM ALERT ERROR]:", telegramErr);
+    }
 }
 
 // NATURAL DYNAMIC CONVERSATION ENGINE
