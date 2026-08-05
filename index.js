@@ -197,12 +197,40 @@ app.delete("/api/bookings/:id", async (req, res) => {
     await deleteTenantLogEntry(tenantId, "bookings.json", req.params.id);
     res.json({ success: true });
 });
+
 app.put("/api/bookings/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
     const { id, ...updates } = req.body;
     const updated = await updateTenantLogEntry(tenantId, "bookings.json", req.params.id, updates);
     if (!updated) return res.status(404).json({ error: "Booking not found." });
     res.json({ success: true, booking: updated });
+});
+
+app.get("/api/dashboard/stats", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    try {
+        const [leads, bookings, vault] = await Promise.all([
+            getTenantLog(tenantId, "leads.json"),
+            getTenantLog(tenantId, "bookings.json"),
+            getTenantFile(tenantId, "vault.json", {})
+        ]);
+
+        const sessions = Object.values(vault);
+        const messages = sessions.reduce(
+            (sum, s) => sum + (s.history || []).filter(h => h.role !== "system").length,
+            0
+        );
+
+        res.json({
+            leads: leads.length,
+            bookings: bookings.length,
+            messages,
+            activeChats: sessions.length
+        });
+    } catch (err) {
+        console.error("Dashboard Stats Error:", err);
+        res.status(500).json({ leads: 0, bookings: 0, messages: 0, activeChats: 0 });
+    }
 });
 
 app.get('/api/clients', async (req, res) => {
