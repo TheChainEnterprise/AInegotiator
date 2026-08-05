@@ -544,9 +544,19 @@ app.delete("/api/admin/conversations/:sessionId", async (req, res) => {
 
 // ROBUST FINALIZE BOOKING WITH GUARANTEED EMAIL NOTIFICATIONS & LOGGING
 async function finalizeBooking(tenantId, session, date, time) {
-    const startTime = new Date(`${date}T${time}:00`).toISOString();
-    const endTime = new Date(new Date(startTime).getTime() + 60 * 60 * 1000).toISOString();
+    const parsedStart = moment(`${date} ${time}`, [
+        "YYYY-MM-DD HH:mm",
+        "YYYY-MM-DD hh:mm A",
+        "MM/DD/YYYY HH:mm",
+        "MM/DD/YYYY hh:mm A"
+    ], true);
 
+    if (!parsedStart.isValid()) {
+        throw new Error(`Invalid date/time received: date="${date}" time="${time}"`);
+    }
+
+    const startTime = parsedStart.toISOString();
+    const endTime = parsedStart.clone().add(1, "hour").toISOString();
     let calendarEventCreated = false;
     try {
         const calendarResult = await createCalendarEvent(tenantId, {
