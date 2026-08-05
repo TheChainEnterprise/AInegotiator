@@ -850,6 +850,17 @@ app.get('/api/calendar/slots/:tenantId', async (req, res) => {
     }
 });
 
+app.get('/api/calendar/config/:tenantId', async (req, res) => {
+    const { tenantId } = req.params;
+    try {
+        const business = await getTenantFile(tenantId, "business.json", null);
+        const maxBookingDaysAhead = business?.maxBookingDaysAhead || 30;
+        res.json({ maxBookingDaysAhead });
+    } catch (err) {
+        res.json({ maxBookingDaysAhead: 30 });
+    }
+});
+
 app.post('/book/confirm', async (req, res) => {
     const { tenantId, sessionId, date, time } = req.body;
     const sessionVault = await getTenantFile(tenantId, "vault.json", {});
