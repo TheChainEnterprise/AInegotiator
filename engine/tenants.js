@@ -1,4 +1,5 @@
 const { getDb } = require("./db");
+const { ObjectId } = require("mongodb");
 
 function sanitizeTenantId(tenantId = "default") {
     return String(tenantId)
@@ -52,6 +53,11 @@ async function deleteTenantData(tenantId) {
 // ============================================================
 // Append-only logs (leads.json, bookings.json, audit.json,
 // deals.json, training_data.json)
+//
+// NOTE: entries are identified by MongoDB's own _id, NOT a
+// custom entry.id field. This guarantees every entry always
+// has a stable, unique identifier, even old entries created
+// before an id field existed.
 // ============================================================
 
 // Replaces: fs.appendFileSync(path, JSON.stringify(entry) + "\n")
@@ -67,6 +73,7 @@ async function appendTenantLog(tenantId, fileName, entry) {
 }
 
 // Replaces: reading the whole line-delimited file and reversing it (newest first)
+// Returns each entry with its real MongoDB _id attached as `id` (string form).
 async function getTenantLog(tenantId, fileName) {
     const db = getDb();
     const safeTenantId = sanitizeTenantId(tenantId);
@@ -75,10 +82,10 @@ async function getTenantLog(tenantId, fileName) {
         .find({ tenantId: safeTenantId, fileName })
         .sort({ createdAt: -1 })
         .toArray();
-    return docs.map((doc) => doc.entry);
+    return docs.map((doc) => ({ ...doc.entry, id: doc._id.toString() }));
 }
 
-// Replaces: rewriting the whole file with one entry updated, matched by entry.id
+// Replaces: rewriting the whole file with one entry updated, matched by _id
 async function updateTenantLogEntry(tenantId, fileName, id, updates) {
     const db = getDb();
     const safeTenantId = sanitizeTenantId(tenantId);
@@ -87,21 +94,21 @@ async function updateTenantLogEntry(tenantId, fileName, id, updates) {
         setFields[`entry.${key}`] = value;
     }
     const result = await db.collection("tenant_logs").findOneAndUpdate(
-        { tenantId: safeTenantId, fileName, "entry.id": id },
+        { tenantId: safeTenantId, fileName, _id: new ObjectId(id) },
         { $set: setFields },
         { returnDocument: "after" }
     );
-    return result?.value?.entry || null;
+    return result?.value ? { ...result.value.entry, id: result.value._id.toString() } : null;
 }
 
-// Replaces: rewriting the whole file with one entry removed, matched by entry.id
+// Replaces: rewriting the whole file with one entry removed, matched by _id
 async function deleteTenantLogEntry(tenantId, fileName, id) {
     const db = getDb();
     const safeTenantId = sanitizeTenantId(tenantId);
     await db.collection("tenant_logs").deleteOne({
         tenantId: safeTenantId,
         fileName,
-        "entry.id": id
+        _id: new ObjectId(id)
     });
 }
 

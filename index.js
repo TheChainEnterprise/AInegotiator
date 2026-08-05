@@ -163,23 +163,19 @@ app.get('/api/leads', async (req, res) => {
 
 app.delete("/api/leads/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const targetId = Number(req.params.id);
-    await deleteTenantLogEntry(tenantId, "leads.json", targetId);
+    await deleteTenantLogEntry(tenantId, "leads.json", req.params.id);
     res.json({ success: true });
 });
-
 app.post("/api/leads", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const lead = { id: Date.now(), ...req.body };
+    const lead = { ...req.body };
     await appendTenantLog(tenantId, "leads.json", lead);
     res.json({ success: true, lead });
 });
-
 app.put("/api/leads/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
-    const targetId = Number(req.params.id);
     const { id, ...updates } = req.body;
-    const updated = await updateTenantLogEntry(tenantId, "leads.json", targetId, updates);
+    const updated = await updateTenantLogEntry(tenantId, "leads.json", req.params.id, updates);
     if (!updated) return res.status(404).json({ error: "Lead not found" });
     res.json({ success: true });
 });
