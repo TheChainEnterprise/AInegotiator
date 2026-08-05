@@ -590,14 +590,17 @@ async function finalizeBooking(tenantId, session, date, time) {
         console.error("Calendar Event Error:", err);
     }
 
-    const bookingRecord = {
+const bookingRecord = {
         timestamp: new Date().toISOString(),
+        customer: session.lead?.fullName || "Valued Customer",
         service: session.lead?.service || "Consultation",
         date,
         time,
-        fullName: session.lead?.fullName || "Valued Customer",
+        staff: "Val (AI)",
+        status: "Confirmed",
         phone: session.lead?.phone || "",
         email: session.lead?.email || "",
+        notes: "",
         channel: session.channel || "website",
         calendarEventCreated
     };
@@ -625,7 +628,7 @@ const info = await resend.emails.send({
                 html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 25px; border: 1px solid #eaeaea; border-radius: 10px; background: #ffffff;">
                         <h2 style="color: #111; text-align: center; margin-bottom: 20px;">Appointment Confirmed!</h2>
-                        <p style="font-size: 16px; color: #333;">Hi <strong>${bookingRecord.fullName}</strong>,</p>
+                        <p style="font-size: 16px; color: #333;">Hi <strong>${bookingRecord.customer}</strong>,</p>
                         <p style="font-size: 15px; color: #555; line-height: 1.5;">Your appointment has been successfully booked and added to our calendar.</p>
                         <table style="width: 100%; background: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0; border-collapse: collapse;">
                             <tr><td style="padding: 8px 0; color: #666;"><strong>Date:</strong></td><td style="padding: 8px 0; text-align: right; color: #111;">${bookingRecord.date}</td></tr>
@@ -656,11 +659,11 @@ if (info.error) {
 const info = await resend.emails.send({
                 from: `The Chain System <info@thechain.tech>`,
                 to: alertEmail,
-                subject: `New Booking Alert: ${bookingRecord.service} - ${bookingRecord.fullName}`,
+                subject: `New Booking Alert: ${bookingRecord.service} - ${bookingRecord.customer}`,
                 html: `
                     <div style="font-family: Arial, sans-serif; padding: 20px;">
                         <h2>New Appointment Booked</h2>
-                        <p><strong>Client:</strong> ${bookingRecord.fullName}</p>
+                        <p><strong>Client:</strong> ${bookingRecord.customer}</p>
                         <p><strong>Service:</strong> ${bookingRecord.service}</p>
                         <p><strong>Date:</strong> ${bookingRecord.date}</p>
                         <p><strong>Time:</strong> ${bookingRecord.time}</p>
@@ -683,7 +686,7 @@ if (info.error) {
     try {
         sendAlert(
             tenantId,
-            `New booking: ${bookingRecord.fullName} — ${bookingRecord.service}\n${bookingRecord.date} at ${bookingRecord.time}\nPhone: ${bookingRecord.phone}\nEmail: ${bookingRecord.email}`
+            `New booking: ${bookingRecord.customer} — ${bookingRecord.service}\n${bookingRecord.date} at ${bookingRecord.time}\nPhone: ${bookingRecord.phone}\nEmail: ${bookingRecord.email}`
         );
     } catch (telegramErr) {
         console.error("[TELEGRAM ALERT ERROR]:", telegramErr);
