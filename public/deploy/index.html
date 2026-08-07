@@ -335,20 +335,59 @@
             body: JSON.stringify({ sessionId, message, tenantId: tenant })
           });
           const data = await response.json().catch(() => ({}));
-          const finalText = response.ok && data.response ? data.response : "Sorry, I could not respond right now. Please try again.";
-          reply.textContent = finalText;
-          history.push({ role: "assistant", text: finalText });
-          saveHistory(history);
+          if (data.handledByHuman) {
+            // A human has taken this conversation over — Val stays quiet.
+            // Remove the "Thinking…" placeholder; the agent's reply will
+            // arrive shortly via polling.
+            reply.remove();
+          } else {
+            const finalText = response.ok && data.response ? data.response : "Sorry, I could not respond right now. Please try again.";
+            reply.textContent = finalText;
+            history.push({ role: "assistant", text: finalText });
+            saveHistory(history);
+            seenMessages.add(fingerprint("assistant", finalText));
+          }
         } catch {
           const finalText = "Sorry, I could not connect right now. Please try again.";
           reply.textContent = finalText;
           history.push({ role: "assistant", text: finalText });
           saveHistory(history);
+          seenMessages.add(fingerprint("assistant", finalText));
         } finally {
           send.disabled=false;
           input.focus();
         }
       });
+
+      // ---- Poll for messages a human agent sends from the dashboard ----
+      // (e.g. after clicking "Pause Val (take over)" in the admin panel).
+      // The widget has no other way to learn about those, since they never
+      // go through the normal /api/chat request/response cycle.
+      const fingerprint = (role, text) => role + "::" + text;
+      const seenMessages = new Set(history.map(h => fingerprint(h.role, h.text)));
+
+      const pollForAgentReplies = async () => {
+        try {
+          const res = await fetch(`/api/chat/poll/${encodeURIComponent(sessionId)}?after=0`, {
+            headers: { "x-tenant-id": tenant }
+          });
+          if (!res.ok) return;
+          const data = await res.json().catch(() => null);
+          if (!data || !Array.isArray(data.messages)) return;
+
+          data.messages.forEach(m => {
+            const fp = fingerprint(m.role, m.content);
+            if (!seenMessages.has(fp)) {
+              seenMessages.add(fp);
+              add(m.role, m.content);
+            }
+          });
+        } catch {
+          // Silent — this just retries on the next interval.
+        }
+      };
+
+      setInterval(pollForAgentReplies, 4000);
     })();
   </script>
 </body>

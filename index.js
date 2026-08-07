@@ -166,6 +166,15 @@ app.delete("/api/leads/:id", async (req, res) => {
     await deleteTenantLogEntry(tenantId, "leads.json", req.params.id);
     res.json({ success: true });
 });
+app.post("/api/leads/bulk-delete", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids array is required." });
+    }
+    await Promise.all(ids.map(id => deleteTenantLogEntry(tenantId, "leads.json", id)));
+    res.json({ success: true, deleted: ids.length });
+});
 app.post("/api/leads", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
     const lead = { ...req.body };
@@ -196,6 +205,15 @@ app.delete("/api/bookings/:id", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
     await deleteTenantLogEntry(tenantId, "bookings.json", req.params.id);
     res.json({ success: true });
+});
+app.post("/api/bookings/bulk-delete", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: "ids array is required." });
+    }
+    await Promise.all(ids.map(id => deleteTenantLogEntry(tenantId, "bookings.json", id)));
+    res.json({ success: true, deleted: ids.length });
 });
 
 app.put("/api/bookings/:id", async (req, res) => {
@@ -292,8 +310,10 @@ app.delete("/api/admin/clients/:id", async (req, res) => {
 app.get("/api/admin/profile", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
     const business = await getTenantFile(tenantId, "business.json", {
-        businessName: "", industry: "", description: "", website: "", email: "", phone: "", whatsapp: "", address: "", bookingUrl: "", tone: "Professional", openingHours: {}
-    });
+        businessName: "", industry: "", description: "", website: "", email: "", phone: "", whatsapp: "", address: "", bookingUrl: "", tone: "Professional", openingHours: {},
+bookingDurationMinutes: 60, openHour: 9, closeHour: 17, timezone: "Asia/Bangkok",
+bookingNotificationsEnabled: true
+});
     res.json(business);
 });
 
@@ -525,6 +545,28 @@ app.get("/api/admin/conversations/:sessionId", async (req, res) => {
     });
 });
 
+// Toggle a conversation between AI-handled and human-handled (Manual Override).
+// This is what the dashboard's "Pause Val" / "Resume Val" buttons call.
+app.post("/api/override", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const { sessionId, mode } = req.body;
+
+    if (!sessionId || !["HUMAN", "AI"].includes(mode)) {
+        return res.status(400).json({ error: "sessionId and mode ('HUMAN' or 'AI') are required." });
+    }
+
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[sessionId];
+
+    if (!session) return res.status(404).json({ error: "Conversation not found." });
+
+    session.status = mode === "HUMAN" ? "Manual Override" : "Active";
+    session.lastUpdated = new Date().toISOString();
+    await setTenantFile(tenantId, "vault.json", sessionVault);
+
+    res.json({ success: true, status: session.status });
+});
+
 app.post("/api/admin/conversations/:sessionId/reply", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
     const { message } = req.body;
@@ -562,6 +604,48 @@ app.delete("/api/admin/conversations/:sessionId", async (req, res) => {
     res.json({ success: true });
 });
 
+app.post("/api/admin/conversations/bulk-delete", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const { sessionIds } = req.body;
+    if (!Array.isArray(sessionIds) || sessionIds.length === 0) {
+        return res.status(400).json({ error: "sessionIds array is required." });
+    }
+
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    let deleted = 0;
+    sessionIds.forEach(id => {
+        if (sessionVault[id]) {
+            delete sessionVault[id];
+            deleted++;
+        }
+    });
+    await setTenantFile(tenantId, "vault.json", sessionVault);
+
+    res.json({ success: true, deleted });
+});
+
+// Lets the website widget catch up on messages it doesn't have yet — used
+// while a conversation is paused (Manual Override) so a human agent's reply
+// actually reaches the visitor instead of only being saved in the vault.
+app.get("/api/chat/poll/:sessionId", async (req, res) => {
+    const tenantId = req.headers["x-tenant-id"] || "default";
+    const afterCount = parseInt(req.query.after, 10) || 0;
+
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const session = sessionVault[req.params.sessionId];
+
+    if (!session) return res.json({ status: "Active", messages: [] });
+
+    const history = (session.history || []).filter(h => h.role !== "system");
+    const newMessages = history.slice(afterCount);
+
+    res.json({
+        status: session.status,
+        totalCount: history.length,
+        messages: newMessages
+    });
+});
+
 // ROBUST FINALIZE BOOKING WITH GUARANTEED EMAIL NOTIFICATIONS & LOGGING
 async function finalizeBooking(tenantId, session, date, time) {
     const parsedStart = moment(`${date} ${time}`, [
@@ -576,7 +660,9 @@ async function finalizeBooking(tenantId, session, date, time) {
     }
 
     const startTime = parsedStart.toISOString();
-    const endTime = parsedStart.clone().add(1, "hour").toISOString();
+    const business = await getTenantFile(tenantId, "business.json", null);
+    const bookingDurationMinutes = business?.bookingDurationMinutes || 60;
+    const endTime = parsedStart.clone().add(bookingDurationMinutes, "minutes").toISOString();
     let calendarEventCreated = false;
     try {
         const calendarResult = await createCalendarEvent(tenantId, {
@@ -607,6 +693,41 @@ const bookingRecord = {
 
     await appendTenantLog(tenantId, "bookings.json", bookingRecord);
 
+    // Auto-create a CRM lead from this booking so it shows up in the CRM
+    // pipeline without anyone having to add it by hand. If a lead already
+    // exists for this contact (matched by phone or email), update it
+    // instead of creating a duplicate.
+    try {
+        const existingLeads = await getTenantLog(tenantId, "leads.json");
+        const contactPhone = session.lead?.phone || "";
+        const contactEmail = (session.lead?.email || "").toLowerCase();
+        const matchingLead = existingLeads.find(l =>
+            (contactPhone && l.phone === contactPhone) ||
+            (contactEmail && (l.email || "").toLowerCase() === contactEmail)
+        );
+
+        if (matchingLead) {
+            await updateTenantLogEntry(tenantId, "leads.json", matchingLead.id, {
+                status: "Booked",
+                notes: `${matchingLead.notes ? matchingLead.notes + " | " : ""}Booked ${bookingRecord.service} on ${date} at ${time}`
+            });
+        } else {
+            await appendTenantLog(tenantId, "leads.json", {
+                name: session.lead?.fullName || "New Lead",
+                company: "",
+                email: session.lead?.email || "",
+                phone: session.lead?.phone || "",
+                status: "Booked",
+                source: session.channel === "whatsapp" ? "WhatsApp (Val)" : "Website (Val)",
+                created: new Date().toISOString().slice(0, 10),
+                assigned: "Unassigned",
+                notes: `Booked ${bookingRecord.service} on ${date} at ${time}`
+            });
+        }
+    } catch (leadErr) {
+        console.error("[AUTO LEAD CREATION ERROR]:", leadErr);
+    }
+
     // Fire-and-forget: emails + Telegram no longer block the customer's response
     sendBookingNotifications(tenantId, session, bookingRecord).catch(err => {
         console.error("[BOOKING NOTIFICATIONS ERROR]:", err);
@@ -616,6 +737,12 @@ const bookingRecord = {
 }
 
 async function sendBookingNotifications(tenantId, session, bookingRecord) {
+    const notifBusiness = await getTenantFile(tenantId, "business.json", null);
+    if (notifBusiness?.bookingNotificationsEnabled === false) {
+        console.log("[NOTIFICATIONS SKIPPED] Booking notifications are disabled for this tenant.");
+        return;
+    }
+
     const clientEmail = session.lead?.email;
     console.log(`[EMAIL DISPATCH] Attempting to send Client Confirmation to: ${clientEmail || "NONE FOUND"}`);
 
@@ -811,7 +938,12 @@ if (
 ) {
     if (channel === "whatsapp" && !session.lead.preferredDate) {
         session.lead.preferredDate = moment().add(1, 'days').format("YYYY-MM-DD");
-        const slots = await getAvailableSlots(tenantId, session.lead.preferredDate);
+        const business = await getTenantFile(tenantId, "business.json", null);
+        const slots = await getAvailableSlots(tenantId, session.lead.preferredDate, {
+            openHour: business?.openHour,
+            closeHour: business?.closeHour,
+            slotMinutes: business?.bookingDurationMinutes || business?.slotIntervalMinutes
+        });
         session.offeredSlots = slots.length > 0 ? slots : ["10:00", "11:00", "13:00", "14:00", "15:00"];
         session.waitingForSlotSelection = true;
 
@@ -842,6 +974,21 @@ if (
 app.post('/api/chat', async (req, res) => {
     const tenantId = req.headers['x-tenant-id'] || req.body.tenantId || 'default';
     const { sessionId, message } = req.body;
+
+    // If a human has taken this conversation over, don't let Val jump back in.
+    // Just log the visitor's message and let /api/chat/poll deliver whatever
+    // the human agent sends from the dashboard.
+    const sessionVault = await getTenantFile(tenantId, "vault.json", {});
+    const existingSession = sessionVault[sessionId];
+
+    if (existingSession && existingSession.status === "Manual Override") {
+        existingSession.history = existingSession.history || [];
+        existingSession.history.push({ role: "user", content: message });
+        existingSession.lastUpdated = new Date().toISOString();
+        await setTenantFile(tenantId, "vault.json", sessionVault);
+        return res.json({ response: "", handledByHuman: true });
+    }
+
     const responseText = await processValMessage(tenantId, sessionId, message, "website");
     res.json({ response: responseText || "" });
 });
@@ -850,7 +997,12 @@ app.get('/api/calendar/slots/:tenantId', async (req, res) => {
     const { tenantId } = req.params;
     const { date } = req.query;
     try {
-        const availableSlots = await getAvailableSlots(tenantId, date);
+        const business = await getTenantFile(tenantId, "business.json", null);
+        const availableSlots = await getAvailableSlots(tenantId, date, {
+            openHour: business?.openHour,
+            closeHour: business?.closeHour,
+            slotMinutes: business?.bookingDurationMinutes || business?.slotIntervalMinutes
+        });
         res.json(availableSlots.length > 0 ? availableSlots : ["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"]);
     } catch (error) {
         res.json(["10:00 AM", "11:00 AM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM"]);
