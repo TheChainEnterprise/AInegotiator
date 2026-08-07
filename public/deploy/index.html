@@ -45,8 +45,11 @@
     }
     #panel {
       display: none;
-      width: 374px;
-      height: 590px;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      max-width: 374px;
+      max-height: 590px;
       overflow: hidden;
       border: 1px solid color-mix(in srgb, var(--chat-panel-text) 25%, transparent); /* CHANGED: was tied to primary, now to panel-text so it stays visible against panel-bg regardless of primary */
       border-radius: 20px;
@@ -55,6 +58,7 @@
     }
     header {
       display: flex;
+      flex: none;
       align-items: center;
       justify-content: space-between;
       padding: 17px;
@@ -95,7 +99,8 @@
       cursor: pointer;
     }
     #messages {
-      height: 455px;
+      flex: 1;
+      min-height: 0;
       overflow-y: auto;
       padding: 15px;
     }
@@ -120,6 +125,7 @@
     }
     form {
       display: flex;
+      flex: none;
       gap: 8px;
       padding: 13px;
       border-top: 1px solid color-mix(in srgb, var(--chat-panel-text) 15%, transparent); /* CHANGED */
@@ -265,7 +271,7 @@
       const tell = isOpen => parent.postMessage({ source: "the-chain-deploy-widget", open: isOpen }, "*");
 
       const setOpen = isOpen => {
-        panel.style.display = isOpen ? "block" : "none";
+        panel.style.display = isOpen ? "flex" : "none";
         open.style.display = isOpen ? "none" : "block";
         tell(isOpen);
         if (isOpen) input.focus();
