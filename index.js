@@ -311,9 +311,9 @@ app.get("/api/admin/profile", async (req, res) => {
     const tenantId = req.headers["x-tenant-id"] || "default";
     const business = await getTenantFile(tenantId, "business.json", {
         businessName: "", industry: "", description: "", website: "", email: "", phone: "", whatsapp: "", address: "", bookingUrl: "", tone: "Professional", openingHours: {},
-bookingDurationMinutes: 60, openHour: 9, closeHour: 17, timezone: "Asia/Bangkok",
-bookingNotificationsEnabled: true
-});
+        bookingDurationMinutes: 60, openHour: 9, closeHour: 17, timezone: "Asia/Bangkok",
+        bookingNotificationsEnabled: true
+    });
     res.json(business);
 });
 
