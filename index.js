@@ -845,11 +845,46 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
 
     const lowerMessage = messageText.toLowerCase();
 
+    // ============================================================
+    // HUMAN-LIKE CONVERSATION STATE
+    // A customer can change subjects at any point.
+    // Never trap the conversation inside BOOKING.
+    // ============================================================
+
+    const hasBookingIntent =
+        /\b(book|booking|appointment|schedule|reserve|reservation|availability|available|slot|time)\b/i.test(messageText);
+
+    const isPricingQuestion =
+        /\b(price|pricing|cost|how much|fee|fees|rate|rates|monthly|per month)\b/i.test(messageText);
+
+    const isBusinessQuestion =
+        /\b(website|web ?site|build|built|develop|development|design|booking system|reservation system|reservations|integrat|software|service|services|how does it work|what do you do|what can you do)\b/i.test(messageText);
+
+    const isQuestion =
+        /^(who|what|where|when|why|how|can|could|do|does|is|are|will|would|which|tell me|what about)\b/i.test(messageText.trim()) ||
+        messageText.includes("?");
+
+    /*
+     * Human behaviour:
+     *
+     * If we're booking and the customer asks a genuine business/
+     * product question, temporarily leave BOOKING so Val can answer
+     * the question instead of blindly requesting another field.
+     *
+     * The lead information is NOT deleted.
+     * The next booking-related message can return to BOOKING.
+     */
     if (session.conversationState === "BOOKING") {
-        // Stay in BOOKING state until fields are gathered or completed
-    } else if (lowerMessage.includes("book") || lowerMessage.includes("appointment")) {
+        if (isBusinessQuestion || (isQuestion && !hasBookingIntent && !isPricingQuestion)) {
+            session.conversationState = "DISCUSSION";
+        } else if (isPricingQuestion && !hasBookingIntent) {
+            session.conversationState = "PRICING";
+        } else {
+            session.conversationState = "BOOKING";
+        }
+    } else if (hasBookingIntent) {
         session.conversationState = "BOOKING";
-    } else if (lowerMessage.includes("price") || lowerMessage.includes("cost") || lowerMessage.includes("how much")) {
+    } else if (isPricingQuestion) {
         session.conversationState = "PRICING";
     } else {
         session.conversationState = "DISCUSSION";
@@ -919,7 +954,27 @@ const processValMessage = async (tenantId, sessionId, messageText, channel = "we
         const hasPhone = !!session.lead.phone;
         const hasEmail = !!session.lead.email;
 
-        if (session.conversationState === "BOOKING") {
+        // ============================================================
+        // BOOKING FOLLOW-UP
+        // Only take control of the reply when the CURRENT message
+        // is actually part of the booking flow.
+        //
+        // This prevents Val from ignoring a customer's new question
+        // simply because they previously started booking.
+        // ============================================================
+
+        const currentMessageIsBookingRelated =
+            hasBookingIntent ||
+            !!emailMatch ||
+            !!phoneMatch ||
+            (
+                session.conversationState === "BOOKING" &&
+                !isBusinessQuestion &&
+                !isPricingQuestion &&
+                !isQuestion
+            );
+
+        if (session.conversationState === "BOOKING" && currentMessageIsBookingRelated) {
             if (!hasName) {
                 cleanReply = "I'd love to help you book an appointment! May I please have your full name?";
             } else if (!hasPhone) {
